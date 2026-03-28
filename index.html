@@ -304,8 +304,13 @@ body { font-family:'DM Sans',sans-serif; background:var(--paper); color:var(--in
 <!-- WORLD -->
 <div class="view active" id="vWorld">
   <div class="world-header">
-    <div class="world-title">Your World</div>
-    <div class="world-sub">Every trip, every memory.</div>
+    <div style="display:flex;align-items:flex-start;justify-content:space-between;">
+      <div>
+        <div class="world-title" id="worldTitle">Your World</div>
+        <div class="world-sub" id="worldSub">Every trip, every memory.</div>
+      </div>
+      <div onclick="editWorldHeader()" style="color:var(--muted);font-size:12px;padding:4px 8px;cursor:pointer;margin-top:4px;-webkit-tap-highlight-color:transparent;">✏</div>
+    </div>
     <div class="stats">
       <div class="stat"><div class="stat-num" id="stC">0</div><div class="stat-label">Countries</div></div>
       <div class="stat"><div class="stat-num" id="stCi">0</div><div class="stat-label">Cities</div></div>
@@ -453,6 +458,18 @@ body { font-family:'DM Sans',sans-serif; background:var(--paper); color:var(--in
 </div>
 
 <div class="toast" id="toast"></div>
+
+<!-- EDIT WORLD HEADER SHEET -->
+<div class="overlay" id="editWorldSheet">
+  <div class="sheet">
+    <div class="sheet-handle"></div>
+    <div class="sheet-title">Edit home screen</div>
+    <div class="field"><div class="field-lbl">Title</div><input class="minput" id="ew_title" placeholder="Your World"></div>
+    <div class="field"><div class="field-lbl">Tagline</div><input class="minput" id="ew_sub" placeholder="Every trip, every memory."></div>
+    <button class="submit-btn" id="saveWorldEdit">Save</button>
+    <div class="sheet-cancel" onclick="closeSheet('editWorldSheet')">Cancel</div>
+  </div>
+</div>
 
 <!-- IMPORT TRIP MODAL -->
 <div class="overlay" id="importTripSheet">
@@ -699,8 +716,17 @@ function renderWorld() {
     const cities=DB.cities.filter(x=>x.countryId===c.id).length;
     const trips=DB.trips.filter(t=>DB.cities.find(ci=>ci.id===t.cityId&&ci.countryId===c.id)).length;
     const el=mk('div','card');
-    el.innerHTML=`<div class="card-accent" style="background:${c.color}"></div><div class="card-flag">${c.flag}</div><div class="card-name">${c.name}</div><div class="card-meta">${cities} ${pl('city',cities)} · ${trips} ${pl('trip',trips)}</div>`;
-    tap(el,()=>openCountry(c.id)); g.appendChild(el);
+    el.innerHTML=`<div class="card-accent" style="background:${c.color}"></div>
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;">
+        <div class="card-flag">${c.flag}</div>
+        <div class="del-btn" id="cdel_${c.id}" style="font-size:14px;padding:4px;color:#C0B8B0;">🗑</div>
+      </div>
+      <div class="card-name">${c.name}</div>
+      <div class="card-meta">${cities} ${pl('city',cities)} · ${trips} ${pl('trip',trips)}</div>`;
+    const delBtn = el.querySelector('#cdel_'+c.id);
+    delBtn.addEventListener('click',e=>{e.stopPropagation();confirmDel('country',c.id,c.name);});
+    delBtn.addEventListener('touchend',e=>{e.stopPropagation();e.preventDefault();confirmDel('country',c.id,c.name);},{passive:false});
+    tap(el,()=>openCountry(c.id),'#cdel_'+c.id); g.appendChild(el);
   });
   const a=mk('div','add-card'); a.innerHTML='<div style="font-size:20px">🌍</div><div style="font-size:12px">Add country</div>';
   tap(a,()=>openAdd('country')); g.appendChild(a);
@@ -1255,6 +1281,32 @@ function renderThemePicker() {
 }
 // Theme picker is rendered by calling renderThemePicker() directly from the backup button
 
+// ══ EDIT WORLD HEADER ══
+function editWorldHeader() {
+  const saved = JSON.parse(localStorage.getItem('ll_world')||'{}');
+  document.getElementById('ew_title').value = saved.title || 'Your World';
+  document.getElementById('ew_sub').value = saved.sub || 'Every trip, every memory.';
+  openSheet('editWorldSheet');
+  const btn = document.getElementById('saveWorldEdit');
+  btn.onclick = () => {
+    const title = document.getElementById('ew_title').value.trim() || 'Your World';
+    const sub = document.getElementById('ew_sub').value.trim() || 'Every trip, every memory.';
+    localStorage.setItem('ll_world', JSON.stringify({title, sub}));
+    document.getElementById('worldTitle').textContent = title;
+    document.getElementById('worldSub').textContent = sub;
+    closeSheet('editWorldSheet');
+    showToast('Home screen updated ✓');
+  };
+  btn.ontouchend = e => { e.preventDefault(); btn.onclick(); };
+}
+function loadWorldHeader() {
+  try {
+    const saved = JSON.parse(localStorage.getItem('ll_world')||'{}');
+    if(saved.title) document.getElementById('worldTitle').textContent = saved.title;
+    if(saved.sub) document.getElementById('worldSub').textContent = saved.sub;
+  } catch(e) {}
+}
+
 // ══ EDIT TRIP ══
 function editTrip() {
   const t = find('trips', NAV.tripId); if(!t) return;
@@ -1330,15 +1382,21 @@ function showImportSheet(trip) {
   replBtn.parentNode.replaceChild(newRepl, replBtn);
 
   function doImport(replace) {
-    // Ensure country + city exist
-    if(!DB.countries.find(c=>c.id===trip.countryId||c.name===trip.countryName)) {
-      DB.countries.push({id:trip.countryId||('_c'+Date.now()),name:trip.countryName||'Unknown',flag:trip.countryFlag||'🌍',color:'#C9943A'});
+    // Ensure country exists — match by name if id differs
+    let country = DB.countries.find(c=>c.id===trip.countryId) || DB.countries.find(c=>c.name===trip.countryName);
+    if(!country) {
+      const newCId = trip.countryId||('_c'+Date.now());
+      country = {id:newCId, name:trip.countryName||'Unknown', flag:trip.countryFlag||'🌍', color:'#C9943A'};
+      DB.countries.push(country);
     }
-    const country = DB.countries.find(c=>c.id===trip.countryId)||DB.countries[DB.countries.length-1];
-    if(!DB.cities.find(c=>c.id===trip.cityId)) {
-      DB.cities.push({id:trip.cityId||('_ci'+Date.now()),countryId:country.id,name:trip.cityName||trip.name,icon:trip.cityIcon||'🏙'});
+    // Ensure city exists under the correct country
+    let city = DB.cities.find(c=>c.id===trip.cityId) || DB.cities.find(c=>c.name===trip.cityName&&c.countryId===country.id);
+    if(!city) {
+      const newCiId = trip.cityId||('_ci'+Date.now());
+      city = {id:newCiId, countryId:country.id, name:trip.cityName||trip.name, icon:trip.cityIcon||'🏙'};
+      DB.cities.push(city);
     }
-    const cityId = trip.cityId || DB.cities[DB.cities.length-1].id;
+    const cityId = city.id;
 
     if(replace) {
       DB.trips = DB.trips.filter(t=>t.name!==trip.name);
@@ -1381,6 +1439,8 @@ load(); seed(); renderWorld(); setSyncDot('saved');
 try { const t = localStorage.getItem('ll_theme'); if(t) applyTheme(t); } catch(e) {}
 // Check for incoming trip import
 checkImportParam();
+// Load custom world header
+loadWorldHeader();
 
 // Load Google Maps JS (new dynamic library loading)
 (function(){
