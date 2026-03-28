@@ -110,6 +110,14 @@ body { font-family:'DM Sans',sans-serif; background:var(--paper); color:var(--in
 .backup-btn { background:rgba(201,148,58,0.15); border:1px solid rgba(201,148,58,0.3); color:var(--gold); border-radius:6px; padding:5px 10px; font-size:11px; font-weight:500; cursor:pointer; -webkit-tap-highlight-color:transparent; touch-action:manipulation; }
 .backup-btn:active { background:rgba(201,148,58,0.3); }
 
+/* STATE LEVEL */
+.state-input-wrap{position:relative;}
+.state-suggestions{position:absolute;top:calc(100% + 4px);left:0;right:0;background:white;border:1px solid var(--cream);border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,0.1);z-index:500;display:none;}
+.state-suggestions.show{display:block;}
+.state-sug-item{padding:10px 14px;cursor:pointer;border-bottom:1px solid #F5F2EE;font-size:13px;-webkit-tap-highlight-color:transparent;}
+.state-sug-item:last-child{border-bottom:none;}
+.state-sug-item:active{background:var(--cream);}
+
 /* PACKING LIST */
 .pack-item{background:white;border:1px solid var(--cream);border-radius:var(--r);padding:11px 14px;margin-bottom:7px;display:flex;align-items:center;gap:10px;cursor:pointer;-webkit-tap-highlight-color:transparent;touch-action:manipulation;}
 .pack-item.done .pack-name{text-decoration:line-through;color:var(--muted);}
@@ -388,6 +396,18 @@ body { font-family:'DM Sans',sans-serif; background:var(--paper); color:var(--in
   <div id="citiesList"></div>
 </div>
 
+<!-- STATE -->
+<div class="view" id="vState">
+  <div class="view-header">
+    <div class="view-back" id="stateBack">← Back</div>
+    <div class="view-flag" id="stateFlag"></div>
+    <div class="view-title" id="stateName"></div>
+    <div class="view-sub" id="stateSub"></div>
+  </div>
+  <div class="sec-label">Cities</div>
+  <div id="stateCitiesList"></div>
+</div>
+
 <!-- CITY -->
 <div class="view" id="vCity">
   <div class="view-header">
@@ -534,8 +554,8 @@ body { font-family:'DM Sans',sans-serif; background:var(--paper); color:var(--in
 const PLACES_KEY = 'AIzaSyD7xvsVcAfa90ZEMVaZXns_hBeYYqn1HHQ';
 
 // ══ DATA ══
-let DB = { countries:[], cities:[], trips:[] };
-let NAV = { view:'world', countryId:null, cityId:null, tripId:null, dayIdx:0, memMonth:'_all', packingTab:false, packCat:'All' };
+let DB = { countries:[], cities:[], states:[], trips:[] };
+let NAV = { view:'world', countryId:null, stateId:null, cityId:null, tripId:null, dayIdx:0, memMonth:'_all', packingTab:false, packCat:'All' };
 let pendingDel = null;
 let acSession = null;
 let selectedPlace = null; // from Google Places
@@ -547,7 +567,13 @@ function save() {
   clearTimeout(save._t);
   save._t = setTimeout(() => setSyncDot('saved'), 500);
 }
-function load() { try { const d = localStorage.getItem('ll1'); if(d) DB = JSON.parse(d); } catch(e){} }
+function load() { try { const d = localStorage.getItem('ll1'); if(d) DB = JSON.parse(d); } catch(e){} 
+  // Ensure all collections exist (for older saves missing new fields)
+  if(!DB.states) DB.states = [];
+  if(!DB.countries) DB.countries = [];
+  if(!DB.cities) DB.cities = [];
+  if(!DB.trips) DB.trips = [];
+}
 function setSyncDot(s) {
   const d = document.getElementById('syncDot');
   d.className = 'sync-dot' + (s==='saved'?' saved':s==='saving'?' saving':'');
@@ -712,13 +738,26 @@ function seed() {
   if(!DB.countries.find(co=>co.id==='_india')) {
     DB.countries.push({id:'_india',name:'India',flag:'🇮🇳',color:'#C9943A'});
   }
-  const indiaCities=[
-    {id:'_delhi',name:'Delhi',icon:'🌆'},
-    {id:'_jaipur',name:'Jaipur',icon:'🏰'},
-    {id:'_bhubaneswar',name:'Bhubaneswar',icon:'🌺'},
-    {id:'_puri',name:'Puri',icon:'🏖'},
+  // Seed Indian states
+  const indiaStates=[
+    {id:'_st_delhi',name:'Delhi',countryId:'_india'},
+    {id:'_st_odisha',name:'Odisha',countryId:'_india'},
+    {id:'_st_rajasthan',name:'Rajasthan',countryId:'_india'},
   ];
-  indiaCities.forEach(ci=>{if(!DB.cities.find(c=>c.id===ci.id))DB.cities.push({...ci,countryId:'_india'});});
+  indiaStates.forEach(st=>{if(!DB.states.find(s=>s.id===st.id))DB.states.push(st);});
+
+  // Seed Indian cities with stateIds
+  const indiaCities=[
+    {id:'_delhi',name:'Delhi',icon:'🌆',stateId:'_st_delhi'},
+    {id:'_jaipur',name:'Jaipur',icon:'🏰',stateId:'_st_rajasthan'},
+    {id:'_bhubaneswar',name:'Bhubaneswar',icon:'🌺',stateId:'_st_odisha'},
+    {id:'_puri',name:'Puri',icon:'🏖',stateId:'_st_odisha'},
+  ];
+  indiaCities.forEach(ci=>{
+    const existing=DB.cities.find(c=>c.id===ci.id);
+    if(!existing){DB.cities.push({...ci,countryId:'_india'});}
+    else if(!existing.stateId){existing.stateId=ci.stateId;} // migrate existing
+  });
   // ── MEMORY PLACE HELPER (used by all date seeds below) ──
   const MEMCOLORS=['#C9943A','#4A6A9A','#4A8A5A','#8A5AA5','#C2607A','#3D7A5A','#D4954A','#6A5AB5'];
   let _mci=0;
@@ -748,9 +787,11 @@ function seed() {
   }
   if(!DB.trips.find(t=>t.id==='_myvt_odi')) {
     // Bhubaneswar + Puri + Odisha
-    DB.trips.push({id:'_myvt_odi',cityId:'_bhubaneswar',name:'MY <> VT · Odisha',tagline:'First date ❤ + Puri',dates:'Feb–Apr 2025',type:'memory',places:[
+    DB.trips.push({id:'_myvt_odi',cityId:'_bhubaneswar',name:'MY <> VT · Bhubaneswar',tagline:'First date ❤',dates:'Feb–Apr 2025',type:'memory',places:[
       mp('Three Chariots Coffee','23 Feb 2025','Feb 2025','Together','Café','Kalinga Nagar, Bhubaneswar'),
       mp('Ekamra and Kruti Coffee','26 Apr 2025','Apr 2025','Together','Café','Nayapalli, Bhubaneswar'),
+    ]});
+    DB.trips.push({id:'_myvt_puri',cityId:'_puri',name:'MY <> VT · Puri',tagline:'Beach + Konark temple',dates:'Apr 2025',type:'memory',places:[
       mp('Chandrabhaga Beach','27 Apr 2025','Apr 2025','Together','Sights','Puri'),
       mp('Konark Temple','27 Apr 2025','Apr 2025','Together','Sights','Konark, Odisha'),
       mp('Lotus Resort','27 Apr 2025','Apr 2025','Together','Hotel','Puri'),
@@ -872,9 +913,30 @@ function openCountry(id) {
   const c=find('countries',id);
   document.getElementById('cFlag').textContent=c.flag;
   document.getElementById('cName').textContent=c.name;
-  const cities=DB.cities.filter(x=>x.countryId===id);
-  document.getElementById('cSub').textContent=`${cities.length} ${pl('city',cities.length)}`;
+  const states=DB.states.filter(s=>s.countryId===id);
+  const cities=DB.cities.filter(x=>x.countryId===id&&!x.stateId);
+  const hasStates=states.length>0;
+  const total=states.length+cities.length;
+  document.getElementById('cSub').textContent=hasStates?`${states.length} ${pl('state',states.length)} · ${cities.length} direct ${pl('city',cities.length)}`:`${cities.length} ${pl('city',cities.length)}`;
   const list=document.getElementById('citiesList'); list.innerHTML='';
+  // Show states first
+  if(hasStates){
+    const sl=mk('div','sec-label'); sl.textContent='States / Regions'; list.appendChild(sl);
+    states.forEach(st=>{
+      const stateCities=DB.cities.filter(ci=>ci.stateId===st.id);
+      const stateTrips=stateCities.reduce((a,ci)=>a+DB.trips.filter(t=>t.cityId===ci.id).length,0);
+      const row=mk('div','row');
+      row.innerHTML=`<div class="row-icon" style="background:${c.color}22">📍</div><div class="row-info"><div class="row-name">${st.name}</div><div class="row-meta">${stateCities.length} ${pl('city',stateCities.length)} · ${stateTrips} ${pl('trip',stateTrips)}</div></div><div class="row-right"><div class="del-btn">🗑</div><div class="row-arrow">›</div></div>`;
+      row.querySelector('.del-btn').addEventListener('click',e=>{e.stopPropagation();confirmDel('state',st.id,st.name);});
+      row.querySelector('.del-btn').addEventListener('touchend',e=>{e.stopPropagation();e.preventDefault();confirmDel('state',st.id,st.name);},{passive:false});
+      tap(row,()=>openState(st.id),'.del-btn'); list.appendChild(row);
+    });
+    const as=mk('div','add-row'); as.innerHTML='<span>+</span><span>Add state / region</span>'; tap(as,()=>openAdd('state')); list.appendChild(as);
+    if(cities.length>0){
+      const cl=mk('div','sec-label'); cl.textContent='Direct cities (no state)'; cl.style.marginTop='16px'; list.appendChild(cl);
+    }
+  }
+  // Direct cities (no state)
   cities.forEach(ci=>{
     const trips=DB.trips.filter(t=>t.cityId===ci.id).length;
     const row=mk('div','row');
@@ -883,18 +945,46 @@ function openCountry(id) {
     row.querySelector('.del-btn').addEventListener('touchend',e=>{e.stopPropagation();e.preventDefault();confirmDel('city',ci.id,ci.name);},{passive:false});
     tap(row,()=>openCity(ci.id),'.del-btn'); list.appendChild(row);
   });
-  const a=mk('div','add-row'); a.innerHTML='<span>+</span><span>Add city</span>'; tap(a,()=>openAdd('city')); list.appendChild(a);
+  if(!hasStates){
+    const a=mk('div','add-row'); a.innerHTML='<span>+</span><span>Add city</span>'; tap(a,()=>openAdd('city')); list.appendChild(a);
+  }
   showView('vCountry'); bc();
+}
+
+// ══ STATE ══
+function openState(id) {
+  NAV.stateId=id; NAV.view='state';
+  const st=find('states',id);
+  const co=find('countries',st.countryId);
+  document.getElementById('stateFlag').textContent=co.flag;
+  document.getElementById('stateName').textContent=st.name;
+  const cities=DB.cities.filter(ci=>ci.stateId===id);
+  document.getElementById('stateSub').textContent=`${co.flag} ${co.name} · ${cities.length} ${pl('city',cities.length)}`;
+  const sb=document.getElementById('stateBack'); sb.textContent=`← ${co.name}`; sb.onclick=()=>openCountry(co.id);
+  const list=document.getElementById('stateCitiesList'); list.innerHTML='';
+  cities.forEach(ci=>{
+    const trips=DB.trips.filter(t=>t.cityId===ci.id).length;
+    const row=mk('div','row');
+    row.innerHTML=`<div class="row-icon" style="background:${co.color}22">${ci.icon}</div><div class="row-info"><div class="row-name">${ci.name}</div><div class="row-meta">${trips} ${pl('trip',trips)}</div></div><div class="row-right"><div class="del-btn">🗑</div><div class="row-arrow">›</div></div>`;
+    row.querySelector('.del-btn').addEventListener('click',e=>{e.stopPropagation();confirmDel('city',ci.id,ci.name);});
+    row.querySelector('.del-btn').addEventListener('touchend',e=>{e.stopPropagation();e.preventDefault();confirmDel('city',ci.id,ci.name);},{passive:false});
+    tap(row,()=>openCity(ci.id),'.del-btn'); list.appendChild(row);
+  });
+  const a=mk('div','add-row'); a.innerHTML='<span>+</span><span>Add city</span>'; tap(a,()=>openAdd('city')); list.appendChild(a);
+  showView('vState'); bc();
 }
 
 // ══ CITY ══
 function openCity(id) {
   NAV.cityId=id; NAV.view='city';
-  const ci=find('cities',id); const c=find('countries',ci.countryId);
+  const ci=find('cities',id); const co=find('countries',ci.countryId);
   document.getElementById('ciIcon').textContent=ci.icon;
   document.getElementById('ciName').textContent=ci.name;
-  document.getElementById('ciSub').textContent=`${c.flag} ${c.name}`;
-  const cb=document.getElementById('cityBack'); cb.textContent=`← ${c.name}`; cb.onclick=()=>openCountry(c.id);
+  const st=ci.stateId?find('states',ci.stateId):null;
+  document.getElementById('ciSub').textContent=st?`${co.flag} ${co.name} · ${st.name}`:`${co.flag} ${co.name}`;
+  const cb=document.getElementById('cityBack');
+  if(st){cb.textContent=`← ${st.name}`;cb.onclick=()=>openState(st.id);}
+  else{cb.textContent=`← ${co.name}`;cb.onclick=()=>openCountry(co.id);}
   const trips=DB.trips.filter(t=>t.cityId===id);
   const list=document.getElementById('tripsList'); list.innerHTML='';
   trips.forEach(t=>{
@@ -957,8 +1047,7 @@ function renderPlaces(t,dayIdx) {
 function renderPackingList(t) {
   const list=document.getElementById('placesList'); list.innerHTML='';
   if(!t.packing)t.packing=[];
-  const cats=['All','Clothes','Toiletries','Docs','Gear','Meds','Other'];
-  let activeCat=NAV.packCat||'All';
+
   // Progress
   const total=t.packing.length, done=t.packing.filter(i=>i.done).length;
   if(total>0){
@@ -966,22 +1055,11 @@ function renderPackingList(t) {
     prog.innerHTML=`<span>${done}</span> of ${total} packed`;
     list.appendChild(prog);
   }
-  // Category filter
-  const catRow=mk('div','pack-cats');
-  cats.forEach(cat=>{
-    const btn=mk('div','pack-cat-btn'+(activeCat===cat?' active':''));
-    btn.textContent=cat;
-    function docat(){activeCat=cat;NAV.packCat=cat;renderPackingList(t);}
-    btn.addEventListener('click',docat);
-    btn.addEventListener('touchend',e=>{e.preventDefault();docat();},{passive:false});
-    catRow.appendChild(btn);
-  });
-  list.appendChild(catRow);
-  // Items
-  const items=activeCat==='All'?t.packing:t.packing.filter(i=>(i.cat||'Other')===activeCat);
+  // Items - flat list, no categories
+  const items=t.packing;
   items.forEach(item=>{
     const row=mk('div','pack-item'+(item.done?' done':''));
-    row.innerHTML=`<div class="pack-check${item.done?' done':''}">${item.done?'✓':''}</div><div class="pack-name">${item.name}</div><div class="pack-cat">${item.cat||''}</div><div class="pack-del">🗑</div>`;
+    row.innerHTML=`<div class="pack-check${item.done?' done':''}">${item.done?'✓':''}</div><div class="pack-name">${item.name}</div><div class="pack-del">🗑</div>`;
     function toggle(){item.done=!item.done;save();renderPackingList(t);}
     row.querySelector('.pack-check').addEventListener('click',e=>{e.stopPropagation();toggle();});
     row.querySelector('.pack-check').addEventListener('touchend',e=>{e.stopPropagation();e.preventDefault();toggle();},{passive:false});
@@ -989,15 +1067,15 @@ function renderPackingList(t) {
     row.querySelector('.pack-del').addEventListener('touchend',e=>{e.stopPropagation();e.preventDefault();t.packing=t.packing.filter(i=>i.id!==item.id);save();renderPackingList(t);},{passive:false});
     list.appendChild(row);
   });
-  // Add input
+  // Add input - flat, no categories
   const addRow=mk('div','pack-add-row');
-  addRow.innerHTML=`<input class="pack-input" id="packInput" placeholder="Add item e.g. Passport"><select class="pack-input" id="packCat" style="max-width:110px"><option>Clothes</option><option>Toiletries</option><option>Docs</option><option>Gear</option><option>Meds</option><option>Other</option></select><button class="pack-btn" id="packAddBtn">Add</button>`;
+  addRow.innerHTML=`<input class="pack-input" id="packInput" placeholder="Add item e.g. Passport, T-shirts, Charger"><button class="pack-btn" id="packAddBtn">Add</button>`;
   list.appendChild(addRow);
   function addPackItem(){
     const name=document.getElementById('packInput').value.trim();
     if(!name)return;
-    const cat=document.getElementById('packCat').value;
-    t.packing.push({id:'_pk'+Date.now(),name,cat,done:false});
+    t.packing.push({id:'_pk'+Date.now(),name,done:false});
+    document.getElementById('packInput').value='';
     save();renderPackingList(t);
   }
   document.getElementById('packAddBtn').addEventListener('click',addPackItem);
@@ -1566,6 +1644,38 @@ function openAdd(type) {
   if(addType==='country') {
     title.textContent='Add Country';
     body.innerHTML=`<div class="field"><div class="field-lbl">Country name</div><input class="minput" id="mi_n" placeholder="e.g. Japan"></div><div class="field"><div class="field-lbl">Flag</div><div class="egrid">${flagGrid}</div></div><button class="submit-btn" id="doAdd">Add Country</button><div class="sheet-cancel" onclick="closeSheet('addSheet')">Cancel</div>`;
+  } else if(addType==='state') {
+    title.textContent='Add State / Region';
+    // Build suggestions from known Indian states + any user-added ones
+    const KNOWN_STATES=['Andhra Pradesh','Arunachal Pradesh','Assam','Bihar','Chhattisgarh','Goa','Gujarat','Haryana','Himachal Pradesh','Jharkhand','Karnataka','Kerala','Madhya Pradesh','Maharashtra','Manipur','Meghalaya','Mizoram','Nagaland','Odisha','Punjab','Rajasthan','Sikkim','Tamil Nadu','Telangana','Tripura','Uttar Pradesh','Uttarakhand','West Bengal','Delhi','Jammu & Kashmir','Ladakh','Puducherry','Chandigarh'];
+    body.innerHTML=`
+      <div class="field"><div class="field-lbl">State / Region name</div>
+        <div class="state-input-wrap">
+          <input class="minput" id="mi_n" placeholder="e.g. Rajasthan" autocomplete="off">
+          <div class="state-suggestions" id="stateSugg"></div>
+        </div>
+      </div>
+      <button class="submit-btn" id="doAdd">Add State</button>
+      <div class="sheet-cancel" onclick="closeSheet('addSheet')">Cancel</div>`;
+    // Wire suggestions
+    setTimeout(()=>{
+      const inp=document.getElementById('mi_n');
+      const sugg=document.getElementById('stateSugg');
+      inp.addEventListener('input',()=>{
+        const q=inp.value.trim().toLowerCase();
+        if(!q){sugg.classList.remove('show');return;}
+        const matches=KNOWN_STATES.filter(s=>s.toLowerCase().startsWith(q)).slice(0,6);
+        if(!matches.length){sugg.classList.remove('show');return;}
+        sugg.innerHTML=matches.map(s=>`<div class="state-sug-item">${s}</div>`).join('');
+        sugg.classList.add('show');
+        sugg.querySelectorAll('.state-sug-item').forEach(el=>{
+          function pick(){inp.value=el.textContent;sugg.classList.remove('show');}
+          el.addEventListener('click',pick);
+          el.addEventListener('touchend',e=>{e.preventDefault();pick();},{passive:false});
+        });
+      });
+      inp.addEventListener('blur',()=>setTimeout(()=>sugg.classList.remove('show'),200));
+    },100);
   } else if(addType==='city') {
     title.textContent='Add City';
     body.innerHTML=`<div class="field"><div class="field-lbl">City name</div><input class="minput" id="mi_n" placeholder="e.g. Tokyo"></div><div class="field"><div class="field-lbl">Icon</div><div class="egrid">${cityGrid}</div></div><button class="submit-btn" id="doAdd">Add City</button><div class="sheet-cancel" onclick="closeSheet('addSheet')">Cancel</div>`;
@@ -1738,8 +1848,11 @@ function submitAdd() {
   if(addType==='country') {
     DB.countries.push({id:uid(),name,flag:selEmoji||'🌍',color:PCOLORS[DB.countries.length%PCOLORS.length]});
     closeSheet('addSheet');save();renderWorld();showToast('Country added!');
+  } else if(addType==='state') {
+    DB.states.push({id:uid(),countryId:NAV.countryId,name});
+    closeSheet('addSheet');save();openCountry(NAV.countryId);showToast('State added!');
   } else if(addType==='city') {
-    DB.cities.push({id:uid(),countryId:NAV.countryId,name,icon:selEmoji||'🏙'});
+    DB.cities.push({id:uid(),countryId:NAV.countryId,stateId:NAV.stateId||null,name,icon:selEmoji||'🏙'});
     closeSheet('addSheet');save();openCountry(NAV.countryId);showToast('City added!');
   } else if(addType==='trip') {
     const dates=document.getElementById('mi_d')?.value||'';
@@ -1786,7 +1899,8 @@ function executeDel() {
   if(!pendingDel)return;
   const{type,id}=pendingDel;
   if(type==='country'){const cids=DB.cities.filter(c=>c.countryId===id).map(c=>c.id);DB.trips=DB.trips.filter(t=>!cids.includes(t.cityId));DB.cities=DB.cities.filter(c=>c.countryId!==id);DB.countries=DB.countries.filter(c=>c.id!==id);closeConfirm();save();renderWorld();showToast('Deleted');}
-  else if(type==='city'){DB.trips=DB.trips.filter(t=>t.cityId!==id);DB.cities=DB.cities.filter(c=>c.id!==id);closeConfirm();save();openCountry(NAV.countryId);showToast('Deleted');}
+  else if(type==='city'){DB.trips=DB.trips.filter(t=>t.cityId!==id);DB.cities=DB.cities.filter(c=>c.id!==id);closeConfirm();save();if(NAV.stateId)openState(NAV.stateId);else openCountry(NAV.countryId);showToast('Deleted');}
+  else if(type==='state'){const sCities=DB.cities.filter(ci=>ci.stateId===id).map(ci=>ci.id);DB.trips=DB.trips.filter(t=>!sCities.includes(t.cityId));DB.cities=DB.cities.filter(ci=>ci.stateId!==id);DB.states=DB.states.filter(s=>s.id!==id);closeConfirm();save();openCountry(NAV.countryId);showToast('Deleted');}
   else if(type==='trip'){DB.trips=DB.trips.filter(t=>t.id!==id);closeConfirm();save();openCity(NAV.cityId);showToast('Deleted');}
   else if(type==='place'){const t=find('trips',NAV.tripId);if(t&&t.days&&t.days[NAV.dayIdx])t.days[NAV.dayIdx].places=t.days[NAV.dayIdx].places.filter(p=>p.id!==id);closeConfirm();save();renderPlaces(t,NAV.dayIdx);renderStrip(t);showToast('Deleted');}
   else if(type==='memplace'){const t=find('trips',NAV.tripId);if(t)t.places=(t.places||[]).filter(p=>p.id!==id);closeConfirm();save();renderMemoryStrip(t);renderMemoryPlaces(t);showToast('Deleted');}
@@ -1798,16 +1912,18 @@ function closeConfirm(){document.getElementById('confirmOverlay').classList.remo
 function showView(id) {
   document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
   document.getElementById(id).classList.add('active');
+  if(id==='vState'||id==='vCountry'){NAV.stateId=id==='vCountry'?null:NAV.stateId;}
   const inTrip=id==='vTrip';
   document.getElementById('fab').classList.toggle('hidden',id==='vWorld');
   document.getElementById('qcBtn').classList.toggle('show',inTrip);
   window.scrollTo({top:0});
 }
-function goTo(v){NAV.view=v;if(v==='world'){showView('vWorld');renderWorld();}}
-function guessType(){if(NAV.view==='world')return'country';if(NAV.view==='country')return'city';if(NAV.view==='city')return'trip';const t=find('trips',NAV.tripId);return t&&t.type==='memory'?'memory':'place';}
+function goTo(v){NAV.view=v;if(v==='world'){NAV.stateId=null;showView('vWorld');renderWorld();}}
+function guessType(){if(NAV.view==='world')return'country';if(NAV.view==='country')return NAV.stateId?'city':'state';if(NAV.view==='state')return'city';if(NAV.view==='city')return'trip';const t=find('trips',NAV.tripId);return t&&t.type==='memory'?'memory':'place';}
 function bc(){
   const el=document.getElementById('bc'); let h=`<span class="bc" onclick="goTo('world')">World</span>`;
-  if(NAV.countryId){const c=find('countries',NAV.countryId);if(c)h+=`<span class="bc-sep">›</span><span class="bc" onclick="openCountry('${c.id}')">${c.name}</span>`;}
+  if(NAV.countryId){const co=find('countries',NAV.countryId);if(co)h+=`<span class="bc-sep">›</span><span class="bc" onclick="openCountry('${co.id}')">${co.name}</span>`;}
+  if(NAV.stateId){const st=find('states',NAV.stateId);if(st)h+=`<span class="bc-sep">›</span><span class="bc" onclick="openState('${st.id}')">${st.name}</span>`;}
   if(NAV.cityId){const ci=find('cities',NAV.cityId);if(ci)h+=`<span class="bc-sep">›</span><span class="bc" onclick="openCity('${ci.id}')">${ci.name}</span>`;}
   if(NAV.tripId){const t=find('trips',NAV.tripId);if(t)h+=`<span class="bc-sep">›</span><span class="bc">${t.name}</span>`;}
   el.innerHTML=h;
@@ -1828,7 +1944,7 @@ document.getElementById('qcBtn').addEventListener('touchend',e=>{e.preventDefaul
 document.addEventListener('keydown',e=>{if(e.key==='Enter'&&document.getElementById('qcInput')===document.activeElement)quickCapture();});
 
 // ══ UTILS ══
-function find(col,id){return DB[col]?.find(x=>x.id===id);}
+function find(col,id){return DB[col]?.find(x=>x.id===id)||null;}
 function findPlace(id){for(const t of DB.trips){for(const d of (t.days||[]))for(const p of d.places)if(p.id===id)return p;for(const p of (t.places||[]))if(p.id===id)return p;}return null;}
 function pl(w,n){return n===1?w:w+'s';}
 function mk(tag,cls){const el=document.createElement(tag);if(cls)el.className=cls;return el;}
@@ -1980,7 +2096,7 @@ function showImportSheet(trip) {
     let city = DB.cities.find(c=>c.id===trip.cityId) || DB.cities.find(c=>c.name===trip.cityName&&c.countryId===country.id);
     if(!city) {
       const newCiId = trip.cityId||('_ci'+Date.now());
-      city = {id:newCiId, countryId:country.id, name:trip.cityName||trip.name, icon:trip.cityIcon||'🏙'};
+      city = {id:newCiId, countryId:country.id, stateId:trip.stateId||null, name:trip.cityName||trip.name, icon:trip.cityIcon||'🏙'};
       DB.cities.push(city);
     }
     const cityId = city.id;
