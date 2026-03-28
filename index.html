@@ -110,6 +110,53 @@ body { font-family:'DM Sans',sans-serif; background:var(--paper); color:var(--in
 .backup-btn { background:rgba(201,148,58,0.15); border:1px solid rgba(201,148,58,0.3); color:var(--gold); border-radius:6px; padding:5px 10px; font-size:11px; font-weight:500; cursor:pointer; -webkit-tap-highlight-color:transparent; touch-action:manipulation; }
 .backup-btn:active { background:rgba(201,148,58,0.3); }
 
+/* PACKING LIST */
+.pack-item{background:white;border:1px solid var(--cream);border-radius:var(--r);padding:11px 14px;margin-bottom:7px;display:flex;align-items:center;gap:10px;cursor:pointer;-webkit-tap-highlight-color:transparent;touch-action:manipulation;}
+.pack-item.done .pack-name{text-decoration:line-through;color:var(--muted);}
+.pack-check{width:20px;height:20px;border-radius:50%;border:2px solid var(--cream);flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:11px;transition:all .15s;}
+.pack-check.done{background:var(--green);border-color:var(--green);color:white;}
+.pack-name{font-size:13px;flex:1;}
+.pack-cat{font-size:10px;color:var(--muted);flex-shrink:0;}
+.pack-del{font-size:14px;color:var(--muted);padding:4px;-webkit-tap-highlight-color:transparent;}
+.pack-add-row{display:flex;gap:8px;margin-top:8px;}
+.pack-input{flex:1;padding:10px 12px;border:1.5px solid var(--cream);border-radius:8px;font-family:'DM Sans',sans-serif;font-size:13px;outline:none;color:var(--ink);}
+.pack-input:focus{border-color:var(--gold);}
+.pack-btn{background:var(--gold);color:white;border:none;border-radius:8px;padding:10px 14px;font-size:13px;font-weight:500;cursor:pointer;-webkit-tap-highlight-color:transparent;white-space:nowrap;}
+.pack-progress{font-size:11px;color:var(--muted);margin-bottom:12px;}
+.pack-progress span{color:var(--green);font-weight:500;}
+.pack-cats{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px;}
+.pack-cat-btn{font-size:10px;padding:3px 9px;border-radius:12px;border:1px solid var(--cream);cursor:pointer;color:var(--muted);-webkit-tap-highlight-color:transparent;touch-action:manipulation;}
+.pack-cat-btn.active{background:var(--ink);color:white;border-color:var(--ink);}
+
+/* EDIT MEMORY */
+.mem-edit-btn{font-size:11px;color:var(--muted);padding:4px 8px;border:1px solid var(--cream);border-radius:12px;cursor:pointer;-webkit-tap-highlight-color:transparent;white-space:nowrap;flex-shrink:0;}
+.mem-edit-btn:active{background:var(--cream);}
+
+/* STATS BAR */
+.stats-bar{font-size:11.5px;color:rgba(248,245,240,0.45);margin-top:8px;line-height:1.7;}
+.stats-bar strong{color:rgba(248,245,240,0.8);font-weight:500;}
+.anniv-line{font-size:12px;color:var(--gold);margin-top:5px;font-style:italic;}
+
+/* MOVE PLACE */
+.move-sheet-trip{background:white;border:1px solid var(--cream);border-radius:10px;padding:12px 14px;margin-bottom:8px;cursor:pointer;-webkit-tap-highlight-color:transparent;touch-action:manipulation;}
+.move-sheet-trip:active{background:var(--cream);}
+.move-trip-name{font-size:13px;font-weight:500;}
+.move-trip-meta{font-size:11px;color:var(--muted);margin-top:2px;}
+
+/* MEMORY LOG */
+.date-header{font-size:10px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.1em;padding:10px 0 4px;}
+.who-tag{font-size:9px;font-weight:600;padding:2px 7px;border-radius:10px;margin-left:4px;flex-shrink:0;}
+.who-together{background:#F2DFA8;color:#7A5A00;}
+.who-solo-m{background:#E8EFF8;color:#1E3F6E;}
+.who-solo-v{background:#F4EAF8;color:#5A2275;}
+.who-picker{display:flex;gap:8px;margin-top:6px;flex-wrap:wrap;}
+.who-opt{padding:7px 14px;border-radius:20px;font-size:12px;font-weight:500;cursor:pointer;border:1.5px solid var(--cream);color:var(--muted);-webkit-tap-highlight-color:transparent;touch-action:manipulation;transition:all .12s;}
+.who-opt.sel{border-color:var(--gold);background:var(--gold-light);color:var(--ink);}
+.trip-type-toggle{display:flex;gap:8px;margin-bottom:14px;}
+.type-opt{flex:1;padding:10px;border-radius:8px;border:1.5px solid var(--cream);font-size:12px;font-weight:500;text-align:center;cursor:pointer;color:var(--muted);-webkit-tap-highlight-color:transparent;touch-action:manipulation;line-height:1.4;}
+.type-opt.sel{border-color:var(--gold);background:var(--gold-light);color:var(--ink);}
+.mem-strip-label{font-size:10px;color:rgba(248,245,240,0.35);text-transform:uppercase;letter-spacing:.1em;padding:12px 20px 4px;}
+
 /* ── VIEWS ── */
 .view { display:none; padding:20px; max-width:680px; margin:0 auto; padding-bottom:100px; }
 .view.active { display:block; }
@@ -488,7 +535,7 @@ const PLACES_KEY = 'AIzaSyD7xvsVcAfa90ZEMVaZXns_hBeYYqn1HHQ';
 
 // ══ DATA ══
 let DB = { countries:[], cities:[], trips:[] };
-let NAV = { view:'world', countryId:null, cityId:null, tripId:null, dayIdx:0 };
+let NAV = { view:'world', countryId:null, cityId:null, tripId:null, dayIdx:0, memMonth:'_all', packingTab:false, packCat:'All' };
 let pendingDel = null;
 let acSession = null;
 let selectedPlace = null; // from Google Places
@@ -650,6 +697,84 @@ function seed() {
     });
   }
 
+  // ── DATA MIGRATION: fix old _myvt that had wrong cityId ──
+  const oldMyvt = DB.trips.find(t=>t.id==='_myvt');
+  if(oldMyvt && oldMyvt.cityId !== '_delhi') {
+    oldMyvt.cityId = '_delhi';
+  }
+  // Remove Odisha/Rajasthan places from Delhi trip if they leaked in
+  if(oldMyvt && oldMyvt.places) {
+    const delhiOnly = ['Delhi','MKT','GK','Safdurjung','Panchsheel','Nizamuddin','CR Park','DLF','VK','Holi'];
+    oldMyvt.places = oldMyvt.places.filter(p => delhiOnly.some(k => (p.address||'').includes(k) || (p.name||'').includes('Holi') || (p.name||'').includes('Savorworks') || (p.name||'').includes('689') || (p.name||'').includes('Limbu') || (p.name||'').includes('Art Fair') || (p.name||"").includes("Ruby") || (p.name||'').includes('Boon') || (p.name||'').includes('Smoke House') || (p.name||'').includes('Got Tea') || (p.name||'').includes('Kunzum') || (p.name||'').includes('Planterie') || (p.name||'').includes('Diva') || (p.name||'').includes('Lha') || (p.name||'').includes('Paris Coffee')));
+  }
+
+
+  if(!DB.countries.find(co=>co.id==='_india')) {
+    DB.countries.push({id:'_india',name:'India',flag:'🇮🇳',color:'#C9943A'});
+  }
+  const indiaCities=[
+    {id:'_delhi',name:'Delhi',icon:'🌆'},
+    {id:'_jaipur',name:'Jaipur',icon:'🏰'},
+    {id:'_bhubaneswar',name:'Bhubaneswar',icon:'🌺'},
+    {id:'_puri',name:'Puri',icon:'🏖'},
+  ];
+  indiaCities.forEach(ci=>{if(!DB.cities.find(c=>c.id===ci.id))DB.cities.push({...ci,countryId:'_india'});});
+  // ── MEMORY PLACE HELPER (used by all date seeds below) ──
+  const MEMCOLORS=['#C9943A','#4A6A9A','#4A8A5A','#8A5AA5','#C2607A','#3D7A5A','#D4954A','#6A5AB5'];
+  let _mci=0;
+  const mp=(name,date,month,who,type,addr)=>({id:'_mv'+(_mci++),name,date,month,who,type,color:MEMCOLORS[_mci%MEMCOLORS.length],address:addr||'',note:'',noteTs:null,rating:0,visited:true});
+
+  if(!DB.trips.find(t=>t.id==='_myvt')) {
+    // Delhi dates
+    DB.trips.push({id:'_myvt',cityId:'_delhi',name:'MY <> VT Dates',tagline:'Every place we’ve been · Delhi',dates:'Feb 2025–ongoing',type:'memory',places:[
+      mp('Local cafe — Holi','15 Mar 2025','Mar 2025','Together','Café','Delhi'),
+      mp('Ama Cafe, MKT','16 Mar 2025','Mar 2025','Together','Café','MKT, Delhi'),
+      mp('Sopa Thakali, MKT','16 Mar 2025','Mar 2025','Together','Food','MKT, Delhi'),
+      mp('Lodhi Garden','16 Mar 2025','Mar 2025','Together','Sights','Lodhi Garden, Delhi'),
+      mp('Savorworks','3 May 2025','May 2025','Together','Café','GK-2, Delhi'),
+      mp('The Paris Coffeehouse','10 Aug 2025','Aug 2025','Together','Café','GK, Delhi'),
+      mp('Diva','25 Aug 2025','Aug 2025','Together','Food','GK, Delhi'),
+      mp('Lha Kitchen','26 Aug 2025','Aug 2025','Together','Food','Safdurjung Enclave, Delhi'),
+      mp('Planterie','14 Sep 2025','Sep 2025','Together','Café','Panchsheel Park, Delhi'),
+      mp('Got Tea','30 Nov 2025','Nov 2025','Together','Café','Delhi'),
+      mp('Kunzum Travel Cafe','30 Nov 2025','Nov 2025','Together','Café','Delhi'),
+      mp('689 by QUORUM','24 Dec 2025','Dec 2025','Together','Food','Delhi'),
+      mp('Limbu Kitchen','31 Jan 2026','Jan 2026','Together','Food','CR Park, Delhi'),
+      mp('India Art Fair','8 Feb 2026','Feb 2026','Together','Activity','Delhi'),
+      mp("Ruby's Coffee",'8 Feb 2026','Feb 2026','Together','Café','Nizamuddin East, Delhi'),
+      mp('Boon — movie','7 Mar 2026','Mar 2026','Together','Activity','DLF Promenade, VK'),
+      mp('Smoke House Delhi','7 Mar 2026','Mar 2026','Together','Food','DLF Promenade, VK'),
+    ]});
+  }
+  if(!DB.trips.find(t=>t.id==='_myvt_odi')) {
+    // Bhubaneswar + Puri + Odisha
+    DB.trips.push({id:'_myvt_odi',cityId:'_bhubaneswar',name:'MY <> VT · Odisha',tagline:'First date ❤ + Puri',dates:'Feb–Apr 2025',type:'memory',places:[
+      mp('Three Chariots Coffee','23 Feb 2025','Feb 2025','Together','Café','Kalinga Nagar, Bhubaneswar'),
+      mp('Ekamra and Kruti Coffee','26 Apr 2025','Apr 2025','Together','Café','Nayapalli, Bhubaneswar'),
+      mp('Chandrabhaga Beach','27 Apr 2025','Apr 2025','Together','Sights','Puri'),
+      mp('Konark Temple','27 Apr 2025','Apr 2025','Together','Sights','Konark, Odisha'),
+      mp('Lotus Resort','27 Apr 2025','Apr 2025','Together','Hotel','Puri'),
+    ]});
+  }
+  if(!DB.trips.find(t=>t.id==='_myvt_raj')) {
+    // Jaipur + Rajasthan
+    DB.trips.push({id:'_myvt_raj',cityId:'_jaipur',name:"MY <> VT · Rajasthan",tagline:"Sonu's wedding + Jaipur trip",dates:'May–Jun 2025',type:'memory',places:[
+      mp("Sonu's Wedding",'3–9 May 2025','May 2025','Together','Activity','Rajasthan'),
+      mp('Neemrana Fort','6 May 2025','May 2025','Together','Sights','Neemrana, Rajasthan'),
+      mp('Chokhi Dhani','21 Jun 2025','Jun 2025','Together','Activity','Jaipur'),
+      mp('Roastery Coffee House','22 Jun 2025','Jun 2025','Together','Café','Vaishali Nagar, Jaipur'),
+      mp("Jay's Mirove Artisnal Kitchen",'22 Jun 2025','Jun 2025','Together','Food','Jaipur'),
+      mp('Napoli','22 Jun 2025','Jun 2025','Together','Food','Jaipur'),
+      mp('Blue Pottery Workshop','23 Jun 2025','Jun 2025','Together','Activity','Jaipur'),
+      mp('Taffeta Coffee','23 Jun 2025','Jun 2025','Together','Café','Jaipur'),
+      mp("BUR'dera",'23 Jun 2025','Jun 2025','Together','Food','Jaipur'),
+      mp('The Sarvato','24 Jun 2025','Jun 2025','Together','Food','Jaipur City Palace'),
+      mp('Jaipur City Palace','24 Jun 2025','Jun 2025','Together','Sights','Jaipur'),
+      mp('Agora Cafe','24 Jun 2025','Jun 2025','Together','Café','Jaipur'),
+      mp('Local cafe, Jaipur','26 Jun 2025','Jun 2025','Together','Café','Jaipur'),
+    ]});
+  }
+
   save();
 }
 
@@ -664,17 +789,25 @@ function doGlobalSearch(q) {
   DB.trips.forEach(t => {
     const ci = find('cities', t.cityId);
     const co = ci ? find('countries', ci.countryId) : null;
-    t.days.forEach((d,di) => {
-      d.places.forEach(p => {
-        const inName = p.name.toLowerCase().includes(lq);
-        const inNote = (p.note||'').toLowerCase().includes(lq);
-        const inAddr = (p.address||'').toLowerCase().includes(lq);
-        const inType = (p.type||'').toLowerCase().includes(lq);
-        if(inName||inNote||inAddr||inType) {
-          results.push({p, t, d, di, ci, co});
-        }
+    if(t.type==='memory') {
+      (t.places||[]).forEach(p => {
+        const inName=p.name.toLowerCase().includes(lq);
+        const inNote=(p.note||'').toLowerCase().includes(lq);
+        const inAddr=(p.address||'').toLowerCase().includes(lq);
+        const inDate=(p.date||'').toLowerCase().includes(lq);
+        if(inName||inNote||inAddr||inDate) results.push({p,t,d:{label:p.date||p.month||'Memory'},di:0,ci,co,isMemory:true});
       });
-    });
+    } else {
+      (t.days||[]).forEach((d,di) => {
+        d.places.forEach(p => {
+          const inName=p.name.toLowerCase().includes(lq);
+          const inNote=(p.note||'').toLowerCase().includes(lq);
+          const inAddr=(p.address||'').toLowerCase().includes(lq);
+          const inType=(p.type||'').toLowerCase().includes(lq);
+          if(inName||inNote||inAddr||inType) results.push({p,t,d,di,ci,co});
+        });
+      });
+    }
   });
   if(!results.length) {
     sr.innerHTML = '<div class="no-results">No results found</div>';
@@ -706,7 +839,7 @@ function jumpToPlace(tripId, dayIdx, placeId) {
 
 // ══ RENDER WORLD ══
 function renderWorld() {
-  const ap = DB.trips.reduce((a,t)=>a+t.days.reduce((b,d)=>b+d.places.length,0),0);
+  const ap = DB.trips.reduce((a,t)=>t.type==='memory'?(a+(t.places||[]).length):(a+(t.days||[]).reduce((b,d)=>b+d.places.length,0)),0);
   document.getElementById('stC').textContent=DB.countries.length;
   document.getElementById('stCi').textContent=DB.cities.length;
   document.getElementById('stT').textContent=DB.trips.length;
@@ -765,9 +898,9 @@ function openCity(id) {
   const trips=DB.trips.filter(t=>t.cityId===id);
   const list=document.getElementById('tripsList'); list.innerHTML='';
   trips.forEach(t=>{
-    const places=t.days.reduce((a,d)=>a+d.places.length,0);
+    const places=t.type==='memory'?(t.places||[]).length:(t.days||[]).reduce((a,d)=>a+d.places.length,0);
     const row=mk('div','row');
-    row.innerHTML=`<div class="row-icon" style="background:#F2DFA8">✈️</div><div class="row-info"><div class="row-name">${t.name}</div><div class="row-meta">${t.dates} · ${places} places · ${t.days.length} days</div></div><div class="row-right"><div class="del-btn">🗑</div><div class="row-arrow">›</div></div>`;
+    row.innerHTML=`<div class="row-icon" style="background:#F2DFA8">✈️</div><div class="row-info"><div class="row-name">${t.name}</div><div class="row-meta">${t.dates} · ${places} places · ${(t.days||[]).length} days</div></div><div class="row-right"><div class="del-btn">🗑</div><div class="row-arrow">›</div></div>`;
     row.querySelector('.del-btn').addEventListener('click',e=>{e.stopPropagation();confirmDel('trip',t.id,t.name);});
     row.querySelector('.del-btn').addEventListener('touchend',e=>{e.stopPropagation();e.preventDefault();confirmDel('trip',t.id,t.name);},{passive:false});
     tap(row,()=>openTrip(t.id),'.del-btn'); list.appendChild(row);
@@ -778,37 +911,373 @@ function openCity(id) {
 
 // ══ TRIP ══
 function openTrip(id) {
-  NAV.tripId=id; NAV.view='trip';
+  NAV.tripId=id; NAV.view='trip'; NAV.dayIdx=0; NAV.memMonth='_all'; NAV.packingTab=false;
   const t=find('trips',id); const ci=find('cities',t.cityId);
   document.getElementById('tDates').textContent=t.dates;
   document.getElementById('tName').textContent=t.name;
   document.getElementById('tTagline').textContent=t.tagline;
   document.getElementById('baseText').textContent=t.base||'Tap to add your accommodation';
   const tb=document.getElementById('tripBack'); tb.textContent=`← ${ci.name}`; tb.onclick=()=>openCity(ci.id);
-  renderStrip(t); renderPlaces(t,NAV.dayIdx);
+  if(t.type==='memory'){renderMemoryStrip(t);renderMemoryPlaces(t);}
+  else{renderStrip(t);renderPlaces(t,NAV.dayIdx);}
   showView('vTrip'); bc();
 }
 
 function renderStrip(t) {
   const s=document.getElementById('tStrip'); s.innerHTML='';
-  t.days.forEach((d,i)=>{
+  (t.days||[]).forEach((d,i)=>{
     const visited=d.places.filter(p=>p.visited).length;
     const total=d.places.length;
-    const chip=mk('div','day-chip'+(i===NAV.dayIdx?' active':''));
+    const chip=mk('div','day-chip'+(i===NAV.dayIdx&&NAV.packingTab!==true?' active':''));
     chip.innerHTML=`${d.label}${total?`<span class="day-progress">${visited}/${total}</span>`:''}`;
-    function go(){NAV.dayIdx=i;renderStrip(t);renderPlaces(t,i);}
+    function go(){NAV.packingTab=false;NAV.dayIdx=i;renderStrip(t);renderPlaces(t,i);}
+    chip.addEventListener('click',go);
+    chip.addEventListener('touchend',e=>{e.preventDefault();go();},{passive:false});
+    s.appendChild(chip);
+  });
+  // Packing list tab
+  const pack=mk('div','day-chip'+(NAV.packingTab===true?' active':''));
+  pack.innerHTML='🎒 Pack';
+  function goPack(){NAV.packingTab=true;renderStrip(t);renderPackingList(t);}
+  pack.addEventListener('click',goPack);
+  pack.addEventListener('touchend',e=>{e.preventDefault();goPack();},{passive:false});
+  s.appendChild(pack);
+}
+
+function renderPlaces(t,dayIdx) {
+  const list=document.getElementById('placesList'); list.innerHTML='';
+  if(!t.days||!t.days[dayIdx])return;
+  t.days[dayIdx].places.forEach((p,i)=>list.appendChild(buildCard(p,i+1,t.id,dayIdx)));
+  const a=document.createElement('div');
+  a.style.cssText='text-align:center;padding:14px;cursor:pointer;color:var(--muted);font-size:13px;';
+  a.textContent='+ Add place'; tap(a,()=>openAdd('place')); list.appendChild(a);
+}
+
+// ══ PACKING LIST ══
+function renderPackingList(t) {
+  const list=document.getElementById('placesList'); list.innerHTML='';
+  if(!t.packing)t.packing=[];
+  const cats=['All','Clothes','Toiletries','Docs','Gear','Meds','Other'];
+  let activeCat=NAV.packCat||'All';
+  // Progress
+  const total=t.packing.length, done=t.packing.filter(i=>i.done).length;
+  if(total>0){
+    const prog=mk('div','pack-progress');
+    prog.innerHTML=`<span>${done}</span> of ${total} packed`;
+    list.appendChild(prog);
+  }
+  // Category filter
+  const catRow=mk('div','pack-cats');
+  cats.forEach(cat=>{
+    const btn=mk('div','pack-cat-btn'+(activeCat===cat?' active':''));
+    btn.textContent=cat;
+    function docat(){activeCat=cat;NAV.packCat=cat;renderPackingList(t);}
+    btn.addEventListener('click',docat);
+    btn.addEventListener('touchend',e=>{e.preventDefault();docat();},{passive:false});
+    catRow.appendChild(btn);
+  });
+  list.appendChild(catRow);
+  // Items
+  const items=activeCat==='All'?t.packing:t.packing.filter(i=>(i.cat||'Other')===activeCat);
+  items.forEach(item=>{
+    const row=mk('div','pack-item'+(item.done?' done':''));
+    row.innerHTML=`<div class="pack-check${item.done?' done':''}">${item.done?'✓':''}</div><div class="pack-name">${item.name}</div><div class="pack-cat">${item.cat||''}</div><div class="pack-del">🗑</div>`;
+    function toggle(){item.done=!item.done;save();renderPackingList(t);}
+    row.querySelector('.pack-check').addEventListener('click',e=>{e.stopPropagation();toggle();});
+    row.querySelector('.pack-check').addEventListener('touchend',e=>{e.stopPropagation();e.preventDefault();toggle();},{passive:false});
+    row.querySelector('.pack-del').addEventListener('click',e=>{e.stopPropagation();t.packing=t.packing.filter(i=>i.id!==item.id);save();renderPackingList(t);});
+    row.querySelector('.pack-del').addEventListener('touchend',e=>{e.stopPropagation();e.preventDefault();t.packing=t.packing.filter(i=>i.id!==item.id);save();renderPackingList(t);},{passive:false});
+    list.appendChild(row);
+  });
+  // Add input
+  const addRow=mk('div','pack-add-row');
+  addRow.innerHTML=`<input class="pack-input" id="packInput" placeholder="Add item e.g. Passport"><select class="pack-input" id="packCat" style="max-width:110px"><option>Clothes</option><option>Toiletries</option><option>Docs</option><option>Gear</option><option>Meds</option><option>Other</option></select><button class="pack-btn" id="packAddBtn">Add</button>`;
+  list.appendChild(addRow);
+  function addPackItem(){
+    const name=document.getElementById('packInput').value.trim();
+    if(!name)return;
+    const cat=document.getElementById('packCat').value;
+    t.packing.push({id:'_pk'+Date.now(),name,cat,done:false});
+    save();renderPackingList(t);
+  }
+  document.getElementById('packAddBtn').addEventListener('click',addPackItem);
+  document.getElementById('packInput').addEventListener('keydown',e=>{if(e.key==='Enter')addPackItem();});
+  // Clear all done
+  if(done>0){
+    const clr=document.createElement('div');
+    clr.style.cssText='text-align:center;padding:10px;font-size:12px;color:var(--muted);cursor:pointer;margin-top:4px;';
+    clr.textContent='Clear packed items';
+    clr.addEventListener('click',()=>{t.packing=t.packing.filter(i=>!i.done);save();renderPackingList(t);});
+    list.appendChild(clr);
+  }
+}
+
+// ══ MEMORY LOG ══
+function renderMemoryStrip(t) {
+  const s=document.getElementById('tStrip'); s.innerHTML='';
+  const allPlaces=t.places||[];
+  const months={};
+  allPlaces.forEach(p=>{const k=p.month||'Undated';if(!months[k])months[k]=0;months[k]++;});
+  // Anniversary counter
+  const FIRST_DATE = new Date('2025-02-23');
+  const today = new Date();
+  const daysTogether = Math.floor((today - FIRST_DATE) / (1000*60*60*24));
+  const anniversaryDays = [30,60,100,180,365,500,730];
+  let nextAnniv = anniversaryDays.find(d=>d>daysTogether);
+  const daysLeft = nextAnniv ? nextAnniv - daysTogether : null;
+  // Stats
+  const together = allPlaces.filter(p=>p.who==='Together').length;
+  const soloM = allPlaces.filter(p=>p.who==='Solo-M').length;
+  const soloV = allPlaces.filter(p=>p.who==='Solo-V').length;
+  const citiesSet = new Set((DB.trips.filter(tr=>tr.type==='memory')||[]).map(tr=>tr.cityId));
+  const statsDiv = mk('div','stats-bar');
+  statsDiv.innerHTML = `<strong>${together}</strong> together · <strong>${soloM}</strong> solo M · <strong>${soloV}</strong> solo V · <strong>${citiesSet.size}</strong> cities`;
+  if(daysLeft!==null){
+    const annDiv = mk('div','anniv-line');
+    annDiv.textContent = `${daysTogether} days since your first date · ${daysLeft} days to ${nextAnniv} 🧡`;
+    statsDiv.appendChild(annDiv);
+  }
+  // Insert stats before the strip
+  const existingStats = document.getElementById('memStatsBar');
+  if(existingStats) existingStats.remove();
+  statsDiv.id = 'memStatsBar';
+  statsDiv.style.cssText = 'padding:8px 20px 4px;';
+  s.before(statsDiv);
+  const lbl=mk('div','mem-strip-label');
+  lbl.textContent=`${allPlaces.length} memories`;
+  s.appendChild(lbl);
+  const allChip=mk('div','day-chip'+((!NAV.memMonth||NAV.memMonth==='_all')?' active':''));
+  allChip.textContent='All';
+  function goAll(){NAV.memMonth='_all';renderMemoryStrip(t);renderMemoryPlaces(t);}
+  allChip.addEventListener('click',goAll);
+  allChip.addEventListener('touchend',e=>{e.preventDefault();goAll();},{passive:false});
+  s.appendChild(allChip);
+  Object.keys(months).forEach(m=>{
+    const chip=mk('div','day-chip'+(NAV.memMonth===m?' active':''));
+    chip.innerHTML=`${m}<span class="day-progress">${months[m]}</span>`;
+    function go(){NAV.memMonth=m;renderMemoryStrip(t);renderMemoryPlaces(t);}
     chip.addEventListener('click',go);
     chip.addEventListener('touchend',e=>{e.preventDefault();go();},{passive:false});
     s.appendChild(chip);
   });
 }
 
-function renderPlaces(t,dayIdx) {
+function renderMemoryPlaces(t) {
   const list=document.getElementById('placesList'); list.innerHTML='';
-  t.days[dayIdx].places.forEach((p,i)=>list.appendChild(buildCard(p,i+1,t.id,dayIdx)));
+  let places=t.places||[];
+  if(NAV.memMonth&&NAV.memMonth!=='_all') places=places.filter(p=>(p.month||'Undated')===NAV.memMonth);
+  const byDate={};
+  places.forEach(p=>{const k=p.date||'No date';if(!byDate[k])byDate[k]=[];byDate[k].push(p);});
+  let num=0;
+  Object.keys(byDate).forEach(date=>{
+    const dh=mk('div','date-header'); dh.textContent=date; list.appendChild(dh);
+    byDate[date].forEach(p=>{num++;list.appendChild(buildMemoryCard(p,num,t.id));});
+  });
   const a=document.createElement('div');
   a.style.cssText='text-align:center;padding:14px;cursor:pointer;color:var(--muted);font-size:13px;';
-  a.textContent='+ Add place'; tap(a,()=>openAdd('place')); list.appendChild(a);
+  a.textContent='+ Add memory'; tap(a,()=>openAdd('memory')); list.appendChild(a);
+}
+
+function buildMemoryCard(p,num,tripId) {
+  const card=mk('div','place-card'); card.id='pc_'+p.id;
+  const whoClass=p.who==='Together'?'who-together':p.who==='Solo-M'?'who-solo-m':'who-solo-v';
+  const whoLabel=p.who==='Together'?'♡ Together':p.who==='Solo-M'?'Solo · M':p.who==='Solo-V'?'Solo · V':'';
+  const vBadge=p.visited?'<span class="visited-badge">✓ been here</span>':'';
+  const ts=p.noteTs?`<div class="note-ts">Last edited ${timeAgo(p.noteTs)}</div>`:'';
+  card.innerHTML=`
+    <div class="place-hdr" id="hdr_${p.id}">
+      <div class="place-num" style="background:${p.color||'#C9943A'}">${num}</div>
+      <div class="place-main">
+        <div class="place-name-row">
+          <div class="place-name">${p.name}</div>
+          ${p.who?`<span class="who-tag ${whoClass}">${whoLabel}</span>`:''}
+          ${vBadge}
+        </div>
+        <div class="place-type">${p.type||'Place'}</div>
+        ${p.address?`<div class="place-addr">\uD83D\uDCCD ${p.address}</div>`:''}
+      </div>
+      <div class="place-actions">
+        <div class="mem-edit-btn" id="medit_${p.id}">✏</div>
+        <div class="place-del" id="del_${p.id}">\uD83D\uDDD1</div>
+        <div class="expand-btn" id="exp_${p.id}">\u25be</div>
+      </div>
+    </div>
+    <div class="place-body" id="body_${p.id}">
+      <div class="note-sec">
+        <div class="field-label">Memory / note</div>
+        <div class="note-disp" id="nd_${p.id}">${p.note||''}</div>
+        ${ts}
+        <textarea class="note-ta" id="nt_${p.id}" placeholder="What happened here? What did you feel?">${p.note||''}</textarea>
+        <div class="note-acts" id="na_${p.id}">
+          <button class="save-btn" id="ns_${p.id}">Save</button>
+          <button class="cancel-btn" id="nc_${p.id}">Cancel</button>
+        </div>
+      </div>
+      <div class="rating-row">
+        <span class="rl">Rate</span>
+        ${[1,2,3,4,5].map(s=>`<span class="star ${(p.rating||0)>=s?'lit':''}" id="st_${p.id}_${s}">\u2605</span>`).join('')}
+        <div class="${p.visited?'vis-toggle done':'vis-toggle'}" id="vis_${p.id}">${p.visited?'\u2713 Been here':'\u25cb Mark visited'}</div>
+      </div>
+    </div>`;
+  const hdr=card.querySelector('.place-hdr');
+  function tog(e){if(e.target.closest('.place-del'))return;const body=document.getElementById('body_'+p.id);const exp=document.getElementById('exp_'+p.id);const o=body.classList.toggle('open');exp.classList.toggle('open',o);}
+  hdr.addEventListener('click',tog);
+  hdr.addEventListener('touchend',e=>{e.preventDefault();tog(e);},{passive:false});
+  const d=card.querySelector('.place-del');
+  d.addEventListener('click',e=>{e.stopPropagation();confirmDel('memplace',p.id,p.name);});
+  d.addEventListener('touchend',e=>{e.stopPropagation();e.preventDefault();confirmDel('memplace',p.id,p.name);},{passive:false});
+  card.querySelector('#nd_'+p.id).addEventListener('click',()=>startEdit(p.id));
+  card.querySelector('#nd_'+p.id).addEventListener('touchend',e=>{e.preventDefault();startEdit(p.id);},{passive:false});
+  card.querySelector('#ns_'+p.id).addEventListener('click',()=>saveMemNote(p.id,tripId));
+  card.querySelector('#ns_'+p.id).addEventListener('touchend',e=>{e.preventDefault();saveMemNote(p.id,tripId);},{passive:false});
+  card.querySelector('#nc_'+p.id).addEventListener('click',()=>cancelEdit(p.id));
+  card.querySelector('#nc_'+p.id).addEventListener('touchend',e=>{e.preventDefault();cancelEdit(p.id);},{passive:false});
+  [1,2,3,4,5].forEach(s=>{
+    const star=card.querySelector('#st_'+p.id+'_'+s);
+    function rate(){const pl=findMemPlace(p.id,tripId);if(pl)pl.rating=s;[1,2,3,4,5].forEach(n=>document.getElementById('st_'+p.id+'_'+n)?.classList.toggle('lit',n<=s));save();}
+    star.addEventListener('click',rate);
+    star.addEventListener('touchend',e=>{e.preventDefault();rate();},{passive:false});
+  });
+  const vis=card.querySelector('#vis_'+p.id);
+  function doVis(){const pl=findMemPlace(p.id,tripId);if(!pl)return;pl.visited=!pl.visited;vis.className=pl.visited?'vis-toggle done':'vis-toggle';vis.textContent=pl.visited?'\u2713 Been here':'\u25cb Mark visited';save();}
+  vis.addEventListener('click',doVis);
+  vis.addEventListener('touchend',e=>{e.preventDefault();doVis();},{passive:false});
+  // Edit button
+  const editBtn=card.querySelector('#medit_'+p.id);
+  editBtn.addEventListener('click',e=>{e.stopPropagation();openEditMemory(p.id,tripId);});
+  editBtn.addEventListener('touchend',e=>{e.stopPropagation();e.preventDefault();openEditMemory(p.id,tripId);},{passive:false});
+  return card;
+}
+
+function openEditMemory(id,tripId) {
+  const pl=findMemPlace(id,tripId); if(!pl)return;
+  const t=find('trips',tripId);
+  // Build edit sheet dynamically in addSheet
+  const title=document.getElementById('addTitle');
+  const body=document.getElementById('addBody');
+  title.textContent='Edit memory';
+  const MONTHS=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  const typeGrid=PTYPES.map(tp=>`<div class="eopt wide${pl.type===tp?' sel':''}" data-val="${tp}">${tp}</div>`).join('');
+  body.innerHTML=`
+    <div class="field"><div class="field-lbl">Place name</div><input class="minput" id="em_name" value="${pl.name}"></div>
+    <div class="field"><div class="field-lbl">Address</div><input class="minput" id="em_addr" placeholder="Address" value="${pl.address||''}"></div>
+    <div class="field"><div class="field-lbl">Date</div><input class="minput" id="em_date" value="${pl.date||''}"></div>
+    <div class="field"><div class="field-lbl">Who was there?</div>
+      <div class="who-picker">
+        <div class="who-opt${pl.who==='Together'?' sel':''}" data-who="Together">♡ Together</div>
+        <div class="who-opt${pl.who==='Solo-M'?' sel':''}" data-who="Solo-M">Solo · M</div>
+        <div class="who-opt${pl.who==='Solo-V'?' sel':''}" data-who="Solo-V">Solo · V</div>
+      </div>
+    </div>
+    <div class="field"><div class="field-lbl">Type</div><div class="egrid">${typeGrid}</div></div>
+    <div class="field"><div class="field-lbl">Move to a different trip</div>
+      <select class="minput" id="em_trip">
+        ${DB.trips.filter(tr=>tr.type==='memory').map(tr=>`<option value="${tr.id}"${tr.id===tripId?' selected':''}>${tr.name}</option>`).join('')}
+      </select>
+    </div>
+    <button class="submit-btn" id="em_save">Save changes</button>
+    <div class="sheet-cancel" onclick="closeSheet('addSheet')">Cancel</div>`;
+  let selWho=pl.who||'Together';
+  let selType=pl.type||'Place';
+  body.querySelectorAll('.who-opt').forEach(el=>{
+    function doWho(){selWho=el.dataset.who;body.querySelectorAll('.who-opt').forEach(x=>x.classList.remove('sel'));el.classList.add('sel');}
+    el.addEventListener('click',doWho);
+    el.addEventListener('touchend',e=>{e.preventDefault();doWho();},{passive:false});
+  });
+  body.querySelectorAll('.eopt').forEach(el=>{
+    function doType(){selType=el.dataset.val;body.querySelectorAll('.eopt').forEach(x=>x.classList.remove('sel'));el.classList.add('sel');}
+    el.addEventListener('click',doType);
+    el.addEventListener('touchend',e=>{e.preventDefault();doType();},{passive:false});
+  });
+  const saveBtn=body.querySelector('#em_save');
+  function doSave(){
+    const name=document.getElementById('em_name').value.trim()||pl.name;
+    const addr=document.getElementById('em_addr').value.trim();
+    const dateVal=document.getElementById('em_date').value.trim();
+    const newTripId=document.getElementById('em_trip').value;
+    // Parse month
+    let month='Undated';
+    const MO=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    for(const m of MO){if(dateVal.includes(m)){const yr=dateVal.match(/\d{4}/);month=m+(yr?' '+yr[0]:'');break;}}
+    // Update fields
+    pl.name=name; pl.address=addr; pl.date=dateVal; pl.month=month; pl.who=selWho; pl.type=selType;
+    // Move trip if changed
+    if(newTripId!==tripId){
+      const oldTrip=find('trips',tripId);
+      const newTrip=find('trips',newTripId);
+      if(oldTrip&&newTrip){
+        oldTrip.places=(oldTrip.places||[]).filter(p=>p.id!==id);
+        if(!newTrip.places)newTrip.places=[];
+        newTrip.places.push(pl);
+      }
+    }
+    closeSheet('addSheet');save();
+    const currentTrip=find('trips',NAV.tripId);
+    if(currentTrip&&currentTrip.type==='memory'){renderMemoryStrip(currentTrip);renderMemoryPlaces(currentTrip);}
+    showToast('Memory updated ✓');
+  }
+  saveBtn.addEventListener('click',doSave);
+  saveBtn.addEventListener('touchend',e=>{e.preventDefault();doSave();},{passive:false});
+  openSheet('addSheet');
+}
+
+function openEditPlace(id,tripId,dayIdx) {
+  const pl=findPlace(id); if(!pl)return;
+  const t=find('trips',tripId);
+  const title=document.getElementById('addTitle');
+  const body=document.getElementById('addBody');
+  title.textContent='Edit place';
+  const typeGrid=PTYPES.map(tp=>`<div class="eopt wide${pl.type===tp?' sel':''}" data-val="${tp}">${tp}</div>`).join('');
+  const dayOpts=(t.days||[]).map((d,i)=>`<option value="${i}"${i===dayIdx?' selected':''}>${d.label}</option>`).join('');
+  body.innerHTML=`
+    <div class="field"><div class="field-lbl">Place name</div><input class="minput" id="ep_name" value="${pl.name}"></div>
+    <div class="field"><div class="field-lbl">Address</div><input class="minput" id="ep_addr" value="${pl.address||''}"></div>
+    <div class="field"><div class="field-lbl">Type</div><div class="egrid">${typeGrid}</div></div>
+    <div class="field"><div class="field-lbl">Move to day</div>
+      <select class="minput" id="ep_day">${dayOpts}</select>
+    </div>
+    <button class="submit-btn" id="ep_save">Save changes</button>
+    <div class="sheet-cancel" onclick="closeSheet('addSheet')">Cancel</div>`;
+  let selType=pl.type||'Place';
+  body.querySelectorAll('.eopt').forEach(el=>{
+    function doType(){selType=el.dataset.val;body.querySelectorAll('.eopt').forEach(x=>x.classList.remove('sel'));el.classList.add('sel');}
+    el.addEventListener('click',doType);
+    el.addEventListener('touchend',e=>{e.preventDefault();doType();},{passive:false});
+  });
+  const saveBtn=body.querySelector('#ep_save');
+  function doSave(){
+    const name=document.getElementById('ep_name').value.trim()||pl.name;
+    const addr=document.getElementById('ep_addr').value.trim();
+    const newDay=parseInt(document.getElementById('ep_day').value);
+    pl.name=name; pl.address=addr; pl.type=selType;
+    // Move to different day
+    if(newDay!==dayIdx&&t.days&&t.days[newDay]){
+      t.days[dayIdx].places=t.days[dayIdx].places.filter(p=>p.id!==id);
+      t.days[newDay].places.push(pl);
+    }
+    closeSheet('addSheet');save();
+    renderStrip(t);renderPlaces(t,NAV.dayIdx);
+    showToast('Place updated ✓');
+  }
+  saveBtn.addEventListener('click',doSave);
+  saveBtn.addEventListener('touchend',e=>{e.preventDefault();doSave();},{passive:false});
+  openSheet('addSheet');
+}
+
+function saveMemNote(id,tripId){
+  const val=document.getElementById('nt_'+id).value;
+  const pl=findMemPlace(id,tripId);
+  if(pl){pl.note=val;pl.noteTs=Date.now();}
+  document.getElementById('nd_'+id).textContent=val;
+  document.getElementById('nd_'+id).style.display='block';
+  document.getElementById('nt_'+id).style.display='none';
+  document.getElementById('na_'+id).style.display='none';
+  save();showToast('Memory saved \u2713');
+}
+
+function findMemPlace(id,tripId){
+  const t=find('trips',tripId||NAV.tripId);
+  return (t?.places||[]).find(p=>p.id===id);
 }
 
 // ══ PLACE CARD ══
@@ -832,6 +1301,7 @@ function buildCard(p,num,tripId,dayIdx) {
           <span class="move-up" id="mu_${p.id}">▲</span>
           <span class="move-dn" id="md_${p.id}">▼</span>
         </div>
+        <div class="mem-edit-btn" id="pedit_${p.id}">✏</div>
         <div class="place-del" id="del_${p.id}">🗑</div>
         <div class="expand-btn" id="exp_${p.id}">▾</div>
       </div>
@@ -875,6 +1345,11 @@ function buildCard(p,num,tripId,dayIdx) {
   md.addEventListener('click',e=>{e.stopPropagation();movePlace(p.id,tripId,dayIdx,1);});
   md.addEventListener('touchend',e=>{e.stopPropagation();e.preventDefault();movePlace(p.id,tripId,dayIdx,1);},{passive:false});
 
+  // Edit button
+  const pedit=card.querySelector('#pedit_'+p.id);
+  pedit.addEventListener('click',e=>{e.stopPropagation();openEditPlace(p.id,tripId,dayIdx);});
+  pedit.addEventListener('touchend',e=>{e.stopPropagation();e.preventDefault();openEditPlace(p.id,tripId,dayIdx);},{passive:false});
+
   // Note
   card.querySelector('#nd_'+p.id).addEventListener('click',()=>startEdit(p.id));
   card.querySelector('#nd_'+p.id).addEventListener('touchend',e=>{e.preventDefault();startEdit(p.id);},{passive:false});
@@ -917,6 +1392,7 @@ function saveNote(id,tripId,dayIdx){
 // ══ MOVE PLACE ══
 function movePlace(id,tripId,dayIdx,dir){
   const t=find('trips',tripId); if(!t)return;
+  if(!t.days||!t.days[dayIdx])return;
   const arr=t.days[dayIdx].places;
   const idx=arr.findIndex(p=>p.id===id);
   const newIdx=idx+dir;
@@ -1095,7 +1571,79 @@ function openAdd(type) {
     body.innerHTML=`<div class="field"><div class="field-lbl">City name</div><input class="minput" id="mi_n" placeholder="e.g. Tokyo"></div><div class="field"><div class="field-lbl">Icon</div><div class="egrid">${cityGrid}</div></div><button class="submit-btn" id="doAdd">Add City</button><div class="sheet-cancel" onclick="closeSheet('addSheet')">Cancel</div>`;
   } else if(addType==='trip') {
     title.textContent='Add Trip';
-    body.innerHTML=`<div class="field"><div class="field-lbl">Trip name</div><input class="minput" id="mi_n" placeholder="e.g. Tokyo — 5 Days"></div><div class="field"><div class="field-lbl">Dates</div><input class="minput" id="mi_d" placeholder="e.g. June 2025"></div><div class="field"><div class="field-lbl">Tagline (optional)</div><input class="minput" id="mi_tl" placeholder="e.g. Cherry blossom season"></div><div class="field"><div class="field-lbl">Number of days</div><input class="minput" id="mi_days" type="number" min="1" max="30" value="3"></div><button class="submit-btn" id="doAdd">Add Trip</button><div class="sheet-cancel" onclick="closeSheet('addSheet')">Cancel</div>`;
+    body.innerHTML=`
+      <div class="field"><div class="field-lbl">Trip type</div>
+        <div class="trip-type-toggle">
+          <div class="type-opt sel" data-val="standard">📅 Standard<br><span style="font-size:10px;font-weight:400">Days / itinerary</span></div>
+          <div class="type-opt" data-val="memory">💛 Memory Log<br><span style="font-size:10px;font-weight:400">Dates & moments</span></div>
+        </div>
+      </div>
+      <div class="field"><div class="field-lbl">Trip name</div><input class="minput" id="mi_n" placeholder="e.g. MY &lt;&gt; VT Dates"></div>
+      <div class="field"><div class="field-lbl">Dates</div><input class="minput" id="mi_d" placeholder="e.g. 2025–ongoing"></div>
+      <div class="field"><div class="field-lbl">Tagline (optional)</div><input class="minput" id="mi_tl" placeholder="e.g. Every place we've been"></div>
+      <div class="field" id="days_field"><div class="field-lbl">Number of days</div><input class="minput" id="mi_days" type="number" min="1" max="30" value="3"></div>
+      <button class="submit-btn" id="doAdd">Add Trip</button>
+      <div class="sheet-cancel" onclick="closeSheet('addSheet')">Cancel</div>`;
+    let selTripType='standard';
+    body.querySelectorAll('.type-opt').forEach(el=>{
+      function doType(){selTripType=el.dataset.val;body.querySelectorAll('.type-opt').forEach(x=>x.classList.remove('sel'));el.classList.add('sel');document.getElementById('days_field').style.display=selTripType==='memory'?'none':'block';}
+      el.addEventListener('click',doType);
+      el.addEventListener('touchend',e=>{e.preventDefault();doType();},{passive:false});
+    });
+    const tripSub=body.querySelector('#doAdd');
+    tripSub.addEventListener('click',()=>submitAddTrip(selTripType));
+    tripSub.addEventListener('touchend',e=>{e.preventDefault();submitAddTrip(selTripType);},{passive:false});
+    openSheet('addSheet');
+    setTimeout(()=>body.querySelector('.minput')?.focus(),200);
+    return;
+  } else if(addType==='memory') {
+    title.textContent='Add Memory';
+    const MONTHS=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    const now=new Date();
+    const todayStr=`${now.getDate()} ${MONTHS[now.getMonth()]} ${now.getFullYear()}`;
+    body.innerHTML=`
+      <div class="field">
+        <div class="field-lbl">Place name</div>
+        <div class="search-wrap">
+          <span class="search-icon">🔍</span>
+          <input class="search-input" id="mi_n" placeholder="e.g. The Paris Coffeehouse" autocomplete="off">
+          <div class="autocomplete-list" id="acList"></div>
+        </div>
+        <div id="placePreview" style="display:none;margin-top:8px;padding:8px 10px;background:var(--paper);border-radius:8px;font-size:12px;color:var(--muted);"></div>
+      </div>
+      <div class="field"><div class="field-lbl">Date (e.g. 23 Feb 2025)</div><input class="minput" id="mi_date" placeholder="e.g. 23 Feb 2025" value="${todayStr}"></div>
+      <div class="field"><div class="field-lbl">Who was there?</div>
+        <div class="who-picker">
+          <div class="who-opt sel" data-who="Together">\u2665 Together</div>
+          <div class="who-opt" data-who="Solo-M">Solo \u00b7 M</div>
+          <div class="who-opt" data-who="Solo-V">Solo \u00b7 V</div>
+        </div>
+      </div>
+      <div class="field" id="typeField" style="display:none"><div class="field-lbl">Type</div><div class="egrid">${typeGrid}</div></div>
+      <button class="submit-btn" id="doAdd">Add Memory</button>
+      <div class="sheet-cancel" onclick="closeSheet('addSheet')">Cancel</div>`;
+    let selWho='Together';
+    body.querySelectorAll('.who-opt').forEach(el=>{
+      function doWho(){selWho=el.dataset.who;body.querySelectorAll('.who-opt').forEach(x=>x.classList.remove('sel'));el.classList.add('sel');}
+      el.addEventListener('click',doWho);
+      el.addEventListener('touchend',e=>{e.preventDefault();doWho();},{passive:false});
+    });
+    setTimeout(()=>{
+      initPlacesSearch('mi_n','acList',(place)=>{
+        selectedPlace=place;
+        document.getElementById('mi_n').value=place.name;
+        document.getElementById('placePreview').style.display='block';
+        document.getElementById('placePreview').innerHTML=`<strong style="color:var(--ink)">${place.name}</strong>${place.address?' \u00b7 '+place.address:''}<br><span style="color:var(--gold);text-transform:uppercase;font-size:10px;letter-spacing:.06em">${place.type}</span>`;
+        document.getElementById('typeField').style.display='block';
+        document.querySelectorAll('#typeField .eopt').forEach(el=>{if(el.dataset.val===place.type){el.classList.add('sel');selEmoji=place.type;}});
+      });
+    },150);
+    const memSub=body.querySelector('#doAdd');
+    memSub.addEventListener('click',()=>submitMemoryPlace(selWho));
+    memSub.addEventListener('touchend',e=>{e.preventDefault();submitMemoryPlace(selWho);},{passive:false});
+    openSheet('addSheet');
+    setTimeout(()=>body.querySelector('.minput,.search-input')?.focus(),200);
+    return;
   } else {
     title.textContent='Add Place';
     body.innerHTML=`
@@ -1145,6 +1693,43 @@ function openAdd(type) {
   setTimeout(()=>body.querySelector('.minput,.search-input')?.focus(),200);
 }
 
+function submitAddTrip(tripType) {
+  const name=(document.getElementById('mi_n')?.value||'').trim();
+  if(!name){showToast('Please enter a name');return;}
+  const uid='_'+Date.now()+Math.random().toString(36).slice(2,5);
+  const dates=document.getElementById('mi_d')?.value||'';
+  const tagline=document.getElementById('mi_tl')?.value||'';
+  if(tripType==='memory') {
+    DB.trips.push({id:uid,cityId:NAV.cityId,name,tagline,dates,type:'memory',places:[]});
+  } else {
+    const n=parseInt(document.getElementById('mi_days')?.value)||3;
+    const days=Array.from({length:n},(_,i)=>({label:`Day ${i+1}`,places:[]}));
+    DB.trips.push({id:uid,cityId:NAV.cityId,name,tagline,dates,days});
+  }
+  closeSheet('addSheet');save();openCity(NAV.cityId);showToast('Trip added!');
+}
+
+function submitMemoryPlace(who) {
+  const name=(selectedPlace?.name||document.getElementById('mi_n')?.value||'').trim();
+  if(!name){showToast('Please enter a place name');return;}
+  const t=find('trips',NAV.tripId); if(!t)return;
+  const uid='_'+Date.now()+Math.random().toString(36).slice(2,5);
+  const dateVal=(document.getElementById('mi_date')?.value||'').trim();
+  const type=selEmoji||(selectedPlace?.type)||'Place';
+  const address=selectedPlace?.address||'';
+  const MONTHS=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  let month='Undated';
+  for(const m of MONTHS){if(dateVal.includes(m)){const yr=dateVal.match(/\d{4}/);month=m+(yr?' '+yr[0]:'');break;}}
+  const PCOLORS_MEM=['#C9943A','#4A6A9A','#4A8A5A','#8A5AA5','#C2607A','#3D7A5A'];
+  const color=PCOLORS_MEM[(t.places||[]).length%PCOLORS_MEM.length];
+  if(!t.places)t.places=[];
+  t.places.push({id:uid,name,type,color,address,date:dateVal,month,who,note:'',noteTs:null,rating:0,visited:false});
+  closeSheet('addSheet');save();
+  renderMemoryStrip(t);renderMemoryPlaces(t);
+  showToast('Memory added!');
+  selectedPlace=null;
+}
+
 function submitAdd() {
   const name=(selectedPlace?.name||document.getElementById('mi_n')?.value||'').trim();
   if(!name){showToast('Please enter a name');return;}
@@ -1167,6 +1752,7 @@ function submitAdd() {
     const t=find('trips',NAV.tripId); if(!t)return;
     const type=selEmoji||(selectedPlace?.type)||'Place';
     const address=selectedPlace?.address||'';
+    if(!t.days)return;
     const color=PCOLORS[t.days[NAV.dayIdx].places.length%PCOLORS.length];
     t.days[NAV.dayIdx].places.push({id:uid(),name,type,color,address,tags:[],note:'',noteTs:null,rating:0,visited:false});
     closeSheet('addSheet');save();renderPlaces(t,NAV.dayIdx);renderStrip(t);showToast('Place added!');
@@ -1202,7 +1788,8 @@ function executeDel() {
   if(type==='country'){const cids=DB.cities.filter(c=>c.countryId===id).map(c=>c.id);DB.trips=DB.trips.filter(t=>!cids.includes(t.cityId));DB.cities=DB.cities.filter(c=>c.countryId!==id);DB.countries=DB.countries.filter(c=>c.id!==id);closeConfirm();save();renderWorld();showToast('Deleted');}
   else if(type==='city'){DB.trips=DB.trips.filter(t=>t.cityId!==id);DB.cities=DB.cities.filter(c=>c.id!==id);closeConfirm();save();openCountry(NAV.countryId);showToast('Deleted');}
   else if(type==='trip'){DB.trips=DB.trips.filter(t=>t.id!==id);closeConfirm();save();openCity(NAV.cityId);showToast('Deleted');}
-  else if(type==='place'){const t=find('trips',NAV.tripId);if(t)t.days[NAV.dayIdx].places=t.days[NAV.dayIdx].places.filter(p=>p.id!==id);closeConfirm();save();renderPlaces(t,NAV.dayIdx);renderStrip(t);showToast('Deleted');}
+  else if(type==='place'){const t=find('trips',NAV.tripId);if(t&&t.days&&t.days[NAV.dayIdx])t.days[NAV.dayIdx].places=t.days[NAV.dayIdx].places.filter(p=>p.id!==id);closeConfirm();save();renderPlaces(t,NAV.dayIdx);renderStrip(t);showToast('Deleted');}
+  else if(type==='memplace'){const t=find('trips',NAV.tripId);if(t)t.places=(t.places||[]).filter(p=>p.id!==id);closeConfirm();save();renderMemoryStrip(t);renderMemoryPlaces(t);showToast('Deleted');}
   pendingDel=null;
 }
 function closeConfirm(){document.getElementById('confirmOverlay').classList.remove('open');pendingDel=null;}
@@ -1217,7 +1804,7 @@ function showView(id) {
   window.scrollTo({top:0});
 }
 function goTo(v){NAV.view=v;if(v==='world'){showView('vWorld');renderWorld();}}
-function guessType(){if(NAV.view==='world')return'country';if(NAV.view==='country')return'city';if(NAV.view==='city')return'trip';return'place';}
+function guessType(){if(NAV.view==='world')return'country';if(NAV.view==='country')return'city';if(NAV.view==='city')return'trip';const t=find('trips',NAV.tripId);return t&&t.type==='memory'?'memory':'place';}
 function bc(){
   const el=document.getElementById('bc'); let h=`<span class="bc" onclick="goTo('world')">World</span>`;
   if(NAV.countryId){const c=find('countries',NAV.countryId);if(c)h+=`<span class="bc-sep">›</span><span class="bc" onclick="openCountry('${c.id}')">${c.name}</span>`;}
@@ -1242,7 +1829,7 @@ document.addEventListener('keydown',e=>{if(e.key==='Enter'&&document.getElementB
 
 // ══ UTILS ══
 function find(col,id){return DB[col]?.find(x=>x.id===id);}
-function findPlace(id){for(const t of DB.trips)for(const d of t.days)for(const p of d.places)if(p.id===id)return p;return null;}
+function findPlace(id){for(const t of DB.trips){for(const d of (t.days||[]))for(const p of d.places)if(p.id===id)return p;for(const p of (t.places||[]))if(p.id===id)return p;}return null;}
 function pl(w,n){return n===1?w:w+'s';}
 function mk(tag,cls){const el=document.createElement(tag);if(cls)el.className=cls;return el;}
 function tap(el,fn,skip){el.addEventListener('click',e=>{if(skip&&e.target.closest(skip))return;fn();});el.addEventListener('touchend',e=>{if(skip&&e.target.closest(skip))return;e.preventDefault();fn();},{passive:false});}
@@ -1366,7 +1953,7 @@ function showImportSheet(trip) {
     <div style="background:var(--paper);border-radius:10px;padding:13px 14px;border:1px solid var(--cream);">
       <div style="font-size:10px;text-transform:uppercase;letter-spacing:.1em;color:var(--muted);margin-bottom:6px;">Trip to import</div>
       <div style="font-size:16px;font-weight:500;font-family:'Playfair Display',serif;margin-bottom:3px;">${trip.name}</div>
-      <div style="font-size:12px;color:var(--muted);">${trip.dates||''} · ${trip.days.length} days · ${places} places</div>
+      <div style="font-size:12px;color:var(--muted);">${trip.dates||''} · ${(trip.days||[]).length} days · ${places} places</div>
       ${trip.tagline?`<div style="font-size:11px;color:var(--muted);margin-top:3px;">${trip.tagline}</div>`:''}
       ${existing?`<div style="font-size:11px;color:var(--red);margin-top:8px;padding:5px 8px;background:#FAE9E7;border-radius:6px;">⚠ A trip named "${trip.name}" already exists</div>`:''}
     </div>`;
