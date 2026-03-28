@@ -297,7 +297,7 @@ body { font-family:'DM Sans',sans-serif; background:var(--paper); color:var(--in
   </div>
   <div class="topbar-right">
     <div class="sync-dot" id="syncDot"></div>
-    <div class="backup-btn" onclick="openSheet('backupSheet')">☁</div>
+    <div class="backup-btn" onclick="openSheet('backupSheet');renderThemePicker()">☁</div>
   </div>
 </div>
 
@@ -1253,12 +1253,7 @@ function renderThemePicker() {
     s.addEventListener('touchend', e => { e.preventDefault(); applyTheme(s.dataset.theme); }, {passive:false});
   });
 }
-// Override openSheet to render theme picker when backup opens
-const _origOpenSheet = openSheet;
-function openSheet(id) {
-  _origOpenSheet(id);
-  if(id === 'backupSheet') renderThemePicker();
-}
+// Theme picker is rendered by calling renderThemePicker() directly from the backup button
 
 // ══ EDIT TRIP ══
 function editTrip() {
