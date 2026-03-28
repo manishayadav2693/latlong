@@ -716,53 +716,85 @@ function initPlacesSearch(inputId, resultsId, onSelect) {
 }
 
 async function fetchPlaces(q, resultsEl, onSelect, input) {
+  // Show manual entry fallback immediately
+  function showManual(label) {
+    resultsEl.innerHTML = `<div class="manual-entry" id="manualEntry">✏ Add "${label}" manually</div>`;
+    resultsEl.classList.add('show');
+    const me = resultsEl.querySelector('#manualEntry');
+    me.addEventListener('click',()=>{onSelect({name:label,type:'Place',address:'',tags:[]});resultsEl.classList.remove('show');});
+    me.addEventListener('touchend',e=>{e.preventDefault();onSelect({name:label,type:'Place',address:'',tags:[]});resultsEl.classList.remove('show');},{passive:false});
+  }
+
   try {
-    // Show manual entry immediately as fallback
-    if(!window.google?.maps?.places) {
-      resultsEl.innerHTML = `<div class="manual-entry" id="manualEntry">✏ Add "${q}" manually</div>`;
-      resultsEl.classList.add('show');
-      const me=resultsEl.querySelector('#manualEntry');
-      me.addEventListener('click',()=>{onSelect({name:q,type:'Place',address:'',tags:[]});resultsEl.classList.remove('show');});
-      me.addEventListener('touchend',e=>{e.preventDefault();onSelect({name:q,type:'Place',address:'',tags:[]});resultsEl.classList.remove('show');},{passive:false});
-      return;
-    }
-    const service = new google.maps.places.AutocompleteService();
-    service.getPlacePredictions({input:q}, (predictions, status) => {
-      if(status !== 'OK' || !predictions) { resultsEl.classList.remove('show'); return; }
-      resultsEl.innerHTML = predictions.slice(0,5).map((p,i)=>`
-        <div class="ac-item" data-idx="${i}" data-placeid="${p.place_id}">
-          <div class="ac-name">${p.structured_formatting.main_text}</div>
-          <div class="ac-addr">${p.structured_formatting.secondary_text||''}</div>
-        </div>`).join('') + `<div class="manual-entry" id="manualEntry">✏ Add manually as typed</div>`;
-      resultsEl.classList.add('show');
-      // Attach click handlers
-      resultsEl.querySelectorAll('.ac-item').forEach((el,i) => {
-        const pred = predictions[i];
-        function doSelect() {
-          getPlaceDetails(pred.place_id, pred.structured_formatting.main_text, pred.structured_formatting.secondary_text||'', onSelect, input, resultsEl);
-        }
-        el.addEventListener('click', doSelect);
-        el.addEventListener('touchend', e=>{e.preventDefault();doSelect();},{passive:false});
-      });
-      const me=resultsEl.querySelector('#manualEntry');
-      me.addEventListener('click',()=>{onSelect({name:input.value.trim(),type:'Place',address:'',tags:[]});resultsEl.classList.remove('show');});
-      me.addEventListener('touchend',e=>{e.preventDefault();onSelect({name:input.value.trim(),type:'Place',address:'',tags:[]});resultsEl.classList.remove('show');},{passive:false});
+    // Use new AutocompleteSuggestion API (required for new customers from March 2025)
+    if(!window.google?.maps?.places) { showManual(q); return; }
+
+    const { AutocompleteSuggestion } = await google.maps.importLibrary('places');
+    const { suggestions } = await AutocompleteSuggestion.fetchAutocompleteSuggestions({
+      input: q,
+      sessionToken: getSessionToken()
     });
-  } catch(e) { resultsEl.classList.remove('show'); }
+
+    if(!suggestions || suggestions.length === 0) { showManual(q); return; }
+
+    const preds = suggestions.slice(0,5).filter(s => s.placePrediction);
+    resultsEl.innerHTML = preds.map((s,i) => {
+      const p = s.placePrediction;
+      const main = p.mainText?.text || p.text?.text || q;
+      const sec = p.secondaryText?.text || '';
+      return `<div class="ac-item" data-idx="${i}">
+        <div class="ac-name">${main}</div>
+        ${sec ? `<div class="ac-addr">${sec}</div>` : ''}
+      </div>`;
+    }).join('') + `<div class="manual-entry" id="manualEntry">✏ Add manually as typed</div>`;
+    resultsEl.classList.add('show');
+
+    resultsEl.querySelectorAll('.ac-item').forEach((el, i) => {
+      const pred = preds[i]?.placePrediction;
+      if(!pred) return;
+      async function doSelect() {
+        resultsEl.classList.remove('show');
+        try {
+          const place = pred.toPlace();
+          await place.fetchFields({ fields: ['displayName','types','formattedAddress','addressComponents'] });
+          const name = place.displayName || pred.mainText?.text || q;
+          const addr = place.formattedAddress || pred.secondaryText?.text || '';
+          const type = googleTypeToLatlong(place.types || []);
+          onSelect({ name, type, address: addr, tags: [] });
+          resetSessionToken();
+        } catch(e) {
+          onSelect({ name: pred.mainText?.text || q, type: 'Place', address: pred.secondaryText?.text || '', tags: [] });
+        }
+      }
+      el.addEventListener('click', doSelect);
+      el.addEventListener('touchend', e=>{e.preventDefault();doSelect();},{passive:false});
+    });
+
+    const me = resultsEl.querySelector('#manualEntry');
+    me.addEventListener('click',()=>{onSelect({name:input.value.trim(),type:'Place',address:'',tags:[]});resultsEl.classList.remove('show');});
+    me.addEventListener('touchend',e=>{e.preventDefault();onSelect({name:input.value.trim(),type:'Place',address:'',tags:[]});resultsEl.classList.remove('show');},{passive:false});
+
+  } catch(e) {
+    console.warn('Places autocomplete error:', e);
+    showManual(q);
+  }
 }
 
+// Session token management
+let _sessionToken = null;
+async function getSessionToken() {
+  if(!_sessionToken) {
+    const { AutocompleteSessionToken } = await google.maps.importLibrary('places');
+    _sessionToken = new AutocompleteSessionToken();
+  }
+  return _sessionToken;
+}
+function resetSessionToken() { _sessionToken = null; }
+
+// Keep getPlaceDetails as unused fallback
 function getPlaceDetails(placeId, mainText, secText, onSelect, input, resultsEl) {
-  if(!window.google?.maps?.places) { onSelect({name:mainText,type:'Place',address:secText,tags:[]}); resultsEl.classList.remove('show'); return; }
-  const svc = new google.maps.places.PlacesService(document.createElement('div'));
-  svc.getDetails({placeId, fields:['name','types','formatted_address','vicinity']}, (place, status) => {
-    resultsEl.classList.remove('show');
-    if(status==='OK'&&place) {
-      const type = googleTypeToLatlong(place.types||[]);
-      onSelect({name:place.name||mainText, type, address:place.vicinity||place.formatted_address||secText, tags:[]});
-    } else {
-      onSelect({name:mainText, type:'Place', address:secText, tags:[]});
-    }
-  });
+  onSelect({name:mainText, type:'Place', address:secText, tags:[]});
+  resultsEl.classList.remove('show');
 }
 
 function googleTypeToLatlong(types) {
@@ -955,20 +987,12 @@ function showToast(m){const t=document.getElementById('toast');t.textContent=m;t
 // ══ INIT ══
 load(); seed(); renderWorld(); setSyncDot('saved');
 
-// Load Google Maps JS (for Places autocomplete)
-window.gMapsCallback = function() {
-  console.log('Google Maps Places loaded OK');
-  window._gMapsReady = true;
-};
-window.gMapsError = function() {
-  console.warn('Google Maps failed to load — check API key and billing');
-  window._gMapsFailed = true;
-};
+// Load Google Maps JS (new dynamic library loading)
 (function(){
   const s=document.createElement('script');
-  s.src=`https://maps.googleapis.com/maps/api/js?key=${PLACES_KEY}&libraries=places&callback=gMapsCallback`;
+  s.src=`https://maps.googleapis.com/maps/api/js?key=${PLACES_KEY}&v=beta&loading=async`;
   s.async=true; s.defer=true;
-  s.onerror = window.gMapsError;
+  s.onerror = () => console.warn('Google Maps failed — check API key, billing, and Places API (New) is enabled');
   document.head.appendChild(s);
 })();
 </script>
