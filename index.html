@@ -702,17 +702,23 @@ function timeAgo(ts){
 
 // ══ GOOGLE PLACES AUTOCOMPLETE ══
 function initPlacesSearch(inputId, resultsId, onSelect) {
-  const input = document.getElementById(inputId);
-  const results = document.getElementById(resultsId);
-  if(!input||!results) return;
-  let debounce;
-  input.addEventListener('input', () => {
-    clearTimeout(debounce);
-    const q = input.value.trim();
-    if(!q || q.length < 2) { results.classList.remove('show'); return; }
-    debounce = setTimeout(() => fetchPlaces(q, results, onSelect, input), 300);
-  });
-  input.addEventListener('blur', () => setTimeout(()=>results.classList.remove('show'), 200));
+  // Use a slight delay to ensure the DOM element exists
+  setTimeout(() => {
+    const input = document.getElementById(inputId);
+    const results = document.getElementById(resultsId);
+    if(!input || !results) { console.warn('Places search elements not found:', inputId, resultsId); return; }
+    let debounce;
+    input.addEventListener('input', () => {
+      clearTimeout(debounce);
+      const q = input.value.trim();
+      if(!q || q.length < 2) { results.classList.remove('show'); return; }
+      debounce = setTimeout(() => fetchPlaces(q, results, onSelect, input), 350);
+    });
+    // Use mousedown on results to prevent blur hiding them before click fires
+    results.addEventListener('mousedown', e => e.preventDefault());
+    input.addEventListener('blur', () => setTimeout(() => results.classList.remove('show'), 300));
+    console.log('Places search initialised on', inputId);
+  }, 100);
 }
 
 async function fetchPlaces(q, resultsEl, onSelect, input) {
@@ -849,8 +855,8 @@ function openAdd(type) {
       <button class="submit-btn" id="doAdd">Add Place</button>
       <div class="sheet-cancel" onclick="closeSheet('addSheet')">Cancel</div>`;
 
-    // Init Places autocomplete
-    initPlacesSearch('mi_n','acList', (place) => {
+    // Init Places autocomplete — called after DOM is rendered
+    setTimeout(() => initPlacesSearch('mi_n','acList', (place) => {
       selectedPlace = place;
       document.getElementById('mi_n').value = place.name;
       document.getElementById('placePreview').style.display='block';
