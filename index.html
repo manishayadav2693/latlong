@@ -717,10 +717,15 @@ function initPlacesSearch(inputId, resultsId, onSelect) {
 
 async function fetchPlaces(q, resultsEl, onSelect, input) {
   try {
-    const url = `https://maps.googleapis.com/maps/api/place/autocomplete/json?input=${encodeURIComponent(q)}&key=${PLACES_KEY}`;
-    // Use proxy-free approach via Places JS API widget
-    // Since we can't call the REST API directly from a local file (CORS), use the widget approach
-    if(!window.google?.maps?.places) { resultsEl.classList.remove('show'); return; }
+    // Show manual entry immediately as fallback
+    if(!window.google?.maps?.places) {
+      resultsEl.innerHTML = `<div class="manual-entry" id="manualEntry">✏ Add "${q}" manually</div>`;
+      resultsEl.classList.add('show');
+      const me=resultsEl.querySelector('#manualEntry');
+      me.addEventListener('click',()=>{onSelect({name:q,type:'Place',address:'',tags:[]});resultsEl.classList.remove('show');});
+      me.addEventListener('touchend',e=>{e.preventDefault();onSelect({name:q,type:'Place',address:'',tags:[]});resultsEl.classList.remove('show');},{passive:false});
+      return;
+    }
     const service = new google.maps.places.AutocompleteService();
     service.getPlacePredictions({input:q}, (predictions, status) => {
       if(status !== 'OK' || !predictions) { resultsEl.classList.remove('show'); return; }
@@ -951,10 +956,19 @@ function showToast(m){const t=document.getElementById('toast');t.textContent=m;t
 load(); seed(); renderWorld(); setSyncDot('saved');
 
 // Load Google Maps JS (for Places autocomplete)
+window.gMapsCallback = function() {
+  console.log('Google Maps Places loaded OK');
+  window._gMapsReady = true;
+};
+window.gMapsError = function() {
+  console.warn('Google Maps failed to load — check API key and billing');
+  window._gMapsFailed = true;
+};
 (function(){
   const s=document.createElement('script');
-  s.src=`https://maps.googleapis.com/maps/api/js?key=${PLACES_KEY}&libraries=places`;
+  s.src=`https://maps.googleapis.com/maps/api/js?key=${PLACES_KEY}&libraries=places&callback=gMapsCallback`;
   s.async=true; s.defer=true;
+  s.onerror = window.gMapsError;
   document.head.appendChild(s);
 })();
 </script>
