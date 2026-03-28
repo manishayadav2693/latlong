@@ -17,6 +17,80 @@
   --red: #B84040;
   --radius: 12px;
 }
+/* THEMES */
+body.theme-slate {
+  --ink: #1B2333;
+  --paper: #F0F4F8;
+  --cream: #DDE4EE;
+  --gold: #3A6EA8;
+  --gold-light: #C8DDEF;
+  --muted: #7A8899;
+  --green: #2E7A5A;
+}
+body.theme-forest {
+  --ink: #1A2418;
+  --paper: #F2F5EF;
+  --cream: #DDE5D8;
+  --gold: #4A7A3A;
+  --gold-light: #C8DFC0;
+  --muted: #7A8A72;
+  --green: #2E6A44;
+}
+body.theme-noir {
+  --ink: #F5F2EE;
+  --paper: #1A1A1A;
+  --cream: #2A2A2A;
+  --gold: #D4A84A;
+  --gold-light: #3A3020;
+  --muted: #888480;
+  --green: #4A9A6A;
+}
+body.theme-blush {
+  --ink: #2A1A1F;
+  --paper: #FDF5F7;
+  --cream: #F0E0E5;
+  --gold: #C2607A;
+  --gold-light: #F5D0DA;
+  --muted: #9A7A82;
+  --green: #4A7A5A;
+}
+
+/* THEME PICKER */
+.theme-picker { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:4px; }
+.theme-swatch {
+  width:40px; height:40px; border-radius:50%; cursor:pointer;
+  border:3px solid transparent; transition:all .15s;
+  -webkit-tap-highlight-color:transparent; touch-action:manipulation;
+  position:relative; flex-shrink:0;
+}
+.theme-swatch.active { border-color:var(--gold); transform:scale(1.1); }
+.theme-swatch:active { transform:scale(0.95); }
+.theme-swatch-label { font-size:10px; color:var(--muted); text-align:center; margin-top:4px; }
+.theme-opt { display:flex; flex-direction:column; align-items:center; gap:2px; }
+
+/* TRIP EDIT BUTTON */
+.trip-edit-btn {
+  display:inline-flex; align-items:center; gap:4px;
+  font-size:11px; color:rgba(248,245,240,0.45);
+  background:rgba(255,255,255,0.08); border:1px solid rgba(255,255,255,0.12);
+  border-radius:14px; padding:4px 10px; cursor:pointer; margin-top:10px;
+  -webkit-tap-highlight-color:transparent; touch-action:manipulation;
+}
+.trip-edit-btn:active { background:rgba(255,255,255,0.15); }
+
+/* BASE CARD */
+.base-card {
+  background:rgba(255,255,255,0.07); border:1px solid rgba(255,255,255,0.1);
+  border-radius:10px; padding:10px 13px; margin-top:12px;
+  display:flex; align-items:center; gap:10px; cursor:pointer;
+  -webkit-tap-highlight-color:transparent; touch-action:manipulation;
+}
+.base-card:active { background:rgba(255,255,255,0.12); }
+.base-pin { font-size:16px; flex-shrink:0; }
+.base-info { flex:1; min-width:0; }
+.base-label { font-size:9px; text-transform:uppercase; letter-spacing:.12em; color:rgba(248,245,240,0.35); }
+.base-text { font-size:12px; color:rgba(248,245,240,0.75); margin-top:1px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.base-edit { font-size:11px; color:rgba(248,245,240,0.3); flex-shrink:0; }
 * { margin:0; padding:0; box-sizing:border-box; -webkit-font-smoothing:antialiased; }
 body { font-family:'DM Sans',sans-serif; background:var(--paper); color:var(--ink); min-height:100vh; font-size:14px; line-height:1.6; }
 
@@ -281,6 +355,15 @@ body { font-family:'DM Sans',sans-serif; background:var(--paper); color:var(--in
     <div class="trip-dates" id="tDates"></div>
     <div class="trip-name" id="tName"></div>
     <div class="trip-tagline" id="tTagline"></div>
+    <div class="base-card" id="baseCard" onclick="editBase()">
+      <div class="base-pin">🏠</div>
+      <div class="base-info">
+        <div class="base-label">Staying at</div>
+        <div class="base-text" id="baseText">Tap to add your accommodation</div>
+      </div>
+      <div class="base-edit">✏</div>
+    </div>
+    <div class="trip-edit-btn" onclick="editTrip()">✏ Edit trip details</div>
     <div class="days-strip" id="tStrip"></div>
   </div>
   <div id="placesList"></div>
@@ -327,7 +410,35 @@ body { font-family:'DM Sans',sans-serif; background:var(--paper); color:var(--in
     <button class="submit-btn" style="background:var(--green)" onclick="exportData()">⬇ Export data</button>
     <button class="submit-btn" style="background:white;color:var(--ink);border:1.5px solid var(--cream);margin-top:8px;" onclick="importData()">⬆ Import data</button>
     <input type="file" id="importFile" accept=".json" style="display:none" onchange="handleImport(event)">
+    <div style="margin-top:20px;padding-top:16px;border-top:1px solid var(--cream);">
+      <div class="field-lbl" style="margin-bottom:10px;">App theme</div>
+      <div class="theme-picker" id="themePicker"></div>
+    </div>
     <div class="sheet-cancel" onclick="closeSheet('backupSheet')">Close</div>
+  </div>
+</div>
+
+<!-- EDIT TRIP SHEET -->
+<div class="overlay" id="editTripSheet">
+  <div class="sheet">
+    <div class="sheet-handle"></div>
+    <div class="sheet-title">Edit Trip</div>
+    <div class="field"><div class="field-lbl">Trip name</div><input class="minput" id="et_name" placeholder="e.g. Hanoi — 3 Days"></div>
+    <div class="field"><div class="field-lbl">Dates</div><input class="minput" id="et_dates" placeholder="e.g. April 2025"></div>
+    <div class="field"><div class="field-lbl">Tagline</div><input class="minput" id="et_tagline" placeholder="e.g. Vegetarian · Non-alcoholic"></div>
+    <button class="submit-btn" id="saveTripEdit">Save changes</button>
+    <div class="sheet-cancel" onclick="closeSheet('editTripSheet')">Cancel</div>
+  </div>
+</div>
+
+<!-- EDIT BASE SHEET -->
+<div class="overlay" id="editBaseSheet">
+  <div class="sheet">
+    <div class="sheet-handle"></div>
+    <div class="sheet-title">🏠 Where are you staying?</div>
+    <div class="field"><div class="field-lbl">Accommodation name & address</div><input class="minput" id="eb_text" placeholder="e.g. 63 Trúc Bạch, Ba Dinh · Airbnb"></div>
+    <button class="submit-btn" id="saveBaseEdit">Save</button>
+    <div class="sheet-cancel" onclick="closeSheet('editBaseSheet')">Cancel</div>
   </div>
 </div>
 
@@ -342,6 +453,18 @@ body { font-family:'DM Sans',sans-serif; background:var(--paper); color:var(--in
 </div>
 
 <div class="toast" id="toast"></div>
+
+<!-- IMPORT TRIP MODAL -->
+<div class="overlay" id="importTripSheet">
+  <div class="sheet">
+    <div class="sheet-handle"></div>
+    <div class="sheet-title">✈ Import Trip</div>
+    <div id="importPreview" style="margin-bottom:16px;"></div>
+    <button class="submit-btn" style="background:var(--green);margin-bottom:8px;" id="importAddBtn">＋ Add as new trip</button>
+    <button class="submit-btn" style="background:white;color:var(--ink);border:1.5px solid var(--cream);" id="importReplaceBtn">↩ Replace existing trip</button>
+    <div class="sheet-cancel" onclick="closeSheet('importTripSheet');clearImportParam();">Cancel</div>
+  </div>
+</div>
 
 <script>
 const PLACES_KEY = 'AIzaSyD7xvsVcAfa90ZEMVaZXns_hBeYYqn1HHQ';
@@ -388,46 +511,128 @@ function handleImport(e) {
 
 // ══ SEED ══
 function seed() {
-  if(DB.countries.length > 0) return;
-  DB.countries = [{id:'c1',name:'Vietnam',flag:'🇻🇳',color:'#B84040'}];
-  DB.cities = [{id:'ci1',countryId:'c1',name:'Hanoi',icon:'🏯'}];
-  DB.trips = [{
-    id:'t1',cityId:'ci1',name:'Hanoi — 3 Days',
-    tagline:'Vegetarian · Non-alcoholic · Trúc Bạch base',dates:'April 2025',
-    days:[
-      {label:'Day 1',places:[
-        {id:'p1',name:'Washi Nà',type:'Shopping',color:'#8A5AA5',tags:['Local art','Cash only'],note:'',noteTs:null,rating:0,visited:false,address:'Alley off Cua Bac, Ba Dinh'},
-        {id:'p2',name:'Loading T Café',type:'Café',color:'#D4954A',tags:['Egg coffee','Closes 6 PM'],note:'',noteTs:null,rating:0,visited:false,address:'8 Chan Cam St'},
-        {id:'p3',name:'Cerender',type:'Shopping',color:'#8A5AA5',tags:['Ceramics','Hotel delivery'],note:'',noteTs:null,rating:0,visited:false,address:'24 Hang Trong'},
-        {id:'p4',name:'Hoan Kiem Lake',type:'Sights',color:'#4A6A9A',tags:['Lake loop','50k VND temple'],note:'',noteTs:null,rating:0,visited:false,address:'Hoan Kiem District'},
-        {id:'p5',name:"St. Joseph's Cathedral",type:'Sights',color:'#4A6A9A',tags:['Closes 5 PM'],note:'',noteTs:null,rating:0,visited:false,address:'1 Nha Tho St'},
-        {id:'p6',name:'Cong Caphe',type:'Café',color:'#D4954A',tags:['Coconut coffee','Cash only'],note:'',noteTs:null,rating:0,visited:false,address:'27 Nha Tho St'},
-        {id:'p7',name:'Chayfood',type:'Dinner',color:'#4A8A5A',tags:['100% Vegan'],note:'',noteTs:null,rating:0,visited:false,address:'66 Nguyen Huu Huan'},
-      ]},
-      {label:'Day 2',places:[
-        {id:'p8',name:'Tranquil Books & Coffee',type:'Café',color:'#D4954A',tags:['Salted coffee'],note:'',noteTs:null,rating:0,visited:false,address:'5 Nguyen Quang Bich'},
-        {id:'p9',name:'Banh Mi 25',type:'Food',color:'#4A8A5A',tags:['4 veggie options','Cash only'],note:'',noteTs:null,rating:0,visited:false,address:'25 Hang Ca'},
-        {id:'p10',name:'Railway Café (Original)',type:'Café',color:'#D4954A',tags:['Coconut coffee','Train Street'],note:'',noteTs:null,rating:0,visited:false,address:'112 Tran Phu'},
-        {id:'p11',name:'Hoa Lo Prison',type:'Sights',color:'#4A6A9A',tags:['Audio guide 100k'],note:'',noteTs:null,rating:0,visited:false,address:'1 Hoa Lo St'},
-        {id:'p12',name:'Hanoi Opera House',type:'Sights',color:'#4A6A9A',tags:['French colonial'],note:'',noteTs:null,rating:0,visited:false,address:'Trang Tien St'},
-        {id:'p13',name:'KOTO Van Mieu',type:'Lunch',color:'#4A8A5A',tags:['Book ahead','Veggie menu'],note:'',noteTs:null,rating:0,visited:false,address:'35 Van Mieu St'},
-        {id:'p14',name:'Temple of Literature',type:'Sights',color:'#4A6A9A',tags:['70k VND','Closes 5 PM'],note:'',noteTs:null,rating:0,visited:false,address:'58 Quoc Tu Giam'},
-        {id:'p15',name:'Lermalermer',type:'Café',color:'#D4954A',tags:['Cococha drink'],note:'',noteTs:null,rating:0,visited:false,address:'16 Yen The alley'},
-        {id:'p16',name:'May Kitchenware',type:'Shopping',color:'#8A5AA5',tags:['Ceramics','West Lake'],note:'',noteTs:null,rating:0,visited:false,address:'80 Yen Phu'},
-        {id:'p17',name:'Skyline Hanoi',type:'Evening',color:'#C2607A',tags:['360° rooftop'],note:'',noteTs:null,rating:0,visited:false,address:'38 Gia Ngu St'},
-        {id:'p18',name:'Ưu Đàm Chay',type:'Dinner',color:'#4A8A5A',tags:['100% Vegetarian','Book ahead'],note:'',noteTs:null,rating:0,visited:false,address:'55 Nguyen Du'},
-      ]},
-      {label:'Day 3',places:[
-        {id:'p19',name:'Cafe Giang',type:'Café',color:'#D4954A',tags:['1946 original','Cash only'],note:'',noteTs:null,rating:0,visited:false,address:'39 Nguyen Huu Huan'},
-        {id:'p20',name:'Donkey Coffee Roastery',type:'Café',color:'#D4954A',tags:['Specialty','Riverside'],note:'',noteTs:null,rating:0,visited:false,address:'Chuong Duong Do'},
-        {id:'p21',name:'Bat Trang Pottery Village',type:'Day Trip',color:'#6A5AB5',tags:['Cash only','Pottery session'],note:'',noteTs:null,rating:0,visited:false,address:'Bat Trang, 13km southeast'},
-        {id:'p22',name:'Hang Gai — Silk Street',type:'Shopping',color:'#8A5AA5',tags:['Silk','Pearls'],note:'',noteTs:null,rating:0,visited:false,address:'Hang Gai, Old Quarter'},
-        {id:'p23',name:'Chăn Con Công',type:'Shopping',color:'#8A5AA5',tags:['Vintage clothing'],note:'',noteTs:null,rating:0,visited:false,address:'37 Dao Duy Tu'},
-        {id:'p24',name:'Nola Café',type:'Café',color:'#D4954A',tags:['Dragonplum kombucha'],note:'',noteTs:null,rating:0,visited:false,address:'89 Ma May'},
-        {id:'p25',name:"Pizza 4P's Trang Tien",type:'Dinner',color:'#4A8A5A',tags:['Book online','4.9★'],note:'',noteTs:null,rating:0,visited:false,address:'43 Trang Tien'},
-      ]},
-    ]
-  }];
+  // Ensure country exists
+  if(!DB.countries.find(c=>c.id==='c1')) {
+    DB.countries.push({id:'c1',name:'Vietnam',flag:'🇻🇳',color:'#B84040'});
+  }
+  // Add cities if missing
+  if(!DB.cities.find(c=>c.id==='ci1')) DB.cities.push({id:'ci1',countryId:'c1',name:'Hanoi',icon:'🏯'});
+  if(!DB.cities.find(c=>c.id==='ci2')) DB.cities.push({id:'ci2',countryId:'c1',name:'Sapa',icon:'🏔'});
+  if(!DB.cities.find(c=>c.id==='ci3')) DB.cities.push({id:'ci3',countryId:'c1',name:'Hội An',icon:'🏮'});
+
+  // Add Hanoi trip if missing (preserves existing if already there with notes)
+  if(!DB.trips.find(t=>t.id==='t1')) {
+    DB.trips.push({
+      id:'t1',cityId:'ci1',name:'Hanoi — 3 Days',base:'63 Phố Trúc Bạch, Ba Dinh',
+      tagline:'Vegetarian · Non-alcoholic · Trúc Bạch base',dates:'April 2025',
+      days:[
+        {label:'Day 1',places:[
+          {id:'p1',name:'Washi Nà',type:'Shopping',color:'#8A5AA5',tags:['Local art','Cash only'],note:'',noteTs:null,rating:0,visited:false,address:'Alley off Cua Bac, Ba Dinh'},
+          {id:'p2',name:'Loading T Café',type:'Café',color:'#D4954A',tags:['Egg coffee','Closes 6 PM'],note:'',noteTs:null,rating:0,visited:false,address:'8 Chan Cam St'},
+          {id:'p3',name:'Cerender',type:'Shopping',color:'#8A5AA5',tags:['Ceramics','Hotel delivery'],note:'',noteTs:null,rating:0,visited:false,address:'24 Hang Trong'},
+          {id:'p4',name:'Hoan Kiem Lake',type:'Sights',color:'#4A6A9A',tags:['Lake loop','50k VND temple'],note:'',noteTs:null,rating:0,visited:false,address:'Hoan Kiem District'},
+          {id:'p5',name:"St. Joseph's Cathedral",type:'Sights',color:'#4A6A9A',tags:['Closes 5 PM'],note:'',noteTs:null,rating:0,visited:false,address:'1 Nha Tho St'},
+          {id:'p6',name:'Cong Caphe',type:'Café',color:'#D4954A',tags:['Coconut coffee','Cash only'],note:'',noteTs:null,rating:0,visited:false,address:'27 Nha Tho St'},
+          {id:'p7',name:'Chayfood',type:'Dinner',color:'#4A8A5A',tags:['100% Vegan'],note:'',noteTs:null,rating:0,visited:false,address:'66 Nguyen Huu Huan'},
+        ]},
+        {label:'Day 2',places:[
+          {id:'p8',name:'Tranquil Books & Coffee',type:'Café',color:'#D4954A',tags:['Salted coffee'],note:'',noteTs:null,rating:0,visited:false,address:'5 Nguyen Quang Bich'},
+          {id:'p9',name:'Banh Mi 25',type:'Food',color:'#4A8A5A',tags:['4 veggie options','Cash only'],note:'',noteTs:null,rating:0,visited:false,address:'25 Hang Ca'},
+          {id:'p10',name:'Railway Café (Original)',type:'Café',color:'#D4954A',tags:['Coconut coffee','Train Street'],note:'',noteTs:null,rating:0,visited:false,address:'112 Tran Phu'},
+          {id:'p11',name:'Hoa Lo Prison',type:'Sights',color:'#4A6A9A',tags:['Audio guide 100k'],note:'',noteTs:null,rating:0,visited:false,address:'1 Hoa Lo St'},
+          {id:'p12',name:'Hanoi Opera House',type:'Sights',color:'#4A6A9A',tags:['French colonial'],note:'',noteTs:null,rating:0,visited:false,address:'Trang Tien St'},
+          {id:'p13',name:'KOTO Van Mieu',type:'Lunch',color:'#4A8A5A',tags:['Book ahead','Veggie menu'],note:'',noteTs:null,rating:0,visited:false,address:'35 Van Mieu St'},
+          {id:'p14',name:'Temple of Literature',type:'Sights',color:'#4A6A9A',tags:['70k VND','Closes 5 PM'],note:'',noteTs:null,rating:0,visited:false,address:'58 Quoc Tu Giam'},
+          {id:'p15',name:'Lermalermer',type:'Café',color:'#D4954A',tags:['Cococha drink'],note:'',noteTs:null,rating:0,visited:false,address:'16 Yen The alley'},
+          {id:'p16',name:'May Kitchenware',type:'Shopping',color:'#8A5AA5',tags:['Ceramics','West Lake'],note:'',noteTs:null,rating:0,visited:false,address:'80 Yen Phu'},
+          {id:'p17',name:'Skyline Hanoi',type:'Evening',color:'#C2607A',tags:['360° rooftop'],note:'',noteTs:null,rating:0,visited:false,address:'38 Gia Ngu St'},
+          {id:'p18',name:'Ưu Đàm Chay',type:'Dinner',color:'#4A8A5A',tags:['100% Vegetarian','Book ahead'],note:'',noteTs:null,rating:0,visited:false,address:'55 Nguyen Du'},
+        ]},
+        {label:'Day 3',places:[
+          {id:'p19',name:'Cafe Giang',type:'Café',color:'#D4954A',tags:['1946 original','Cash only'],note:'',noteTs:null,rating:0,visited:false,address:'39 Nguyen Huu Huan'},
+          {id:'p20',name:'Donkey Coffee Roastery',type:'Café',color:'#D4954A',tags:['Specialty','Riverside'],note:'',noteTs:null,rating:0,visited:false,address:'Chuong Duong Do'},
+          {id:'p21',name:'Bat Trang Pottery Village',type:'Day Trip',color:'#6A5AB5',tags:['Cash only','Pottery session'],note:'',noteTs:null,rating:0,visited:false,address:'Bat Trang, 13km southeast'},
+          {id:'p22',name:'Hang Gai Silk Street',type:'Shopping',color:'#8A5AA5',tags:['Silk','Pearls'],note:'',noteTs:null,rating:0,visited:false,address:'Hang Gai, Old Quarter'},
+          {id:'p23',name:'Chăn Con Công',type:'Shopping',color:'#8A5AA5',tags:['Vintage clothing'],note:'',noteTs:null,rating:0,visited:false,address:'37 Dao Duy Tu'},
+          {id:'p24',name:'Nola Café',type:'Café',color:'#D4954A',tags:['Dragonplum kombucha'],note:'',noteTs:null,rating:0,visited:false,address:'89 Ma May'},
+          {id:'p25',name:"Pizza 4P's Trang Tien",type:'Dinner',color:'#4A8A5A',tags:['Book online','4.9★'],note:'',noteTs:null,rating:0,visited:false,address:'43 Trang Tien'},
+        ]},
+      ]
+    });
+  }
+
+  // Add Sapa trip if missing
+  if(!DB.trips.find(t=>t.id==='t2')) {
+    DB.trips.push({
+      id:'t2',cityId:'ci2',name:'Sapa — Days 4 & 5',base:'534 Điện Biên Phủ, Sa Pa · Sapa Jungle Homestay',
+      tagline:'Mountains · Villages · Overnight buses both ways',dates:'April 2025',
+      days:[
+        {label:'Day 4',places:[
+          {id:'s1',name:'Arrive + rest + terrace coffee',type:'Hotel',color:'#8C877E',tags:['Arrive 5:30 AM','Rest 2.5 hrs'],note:'',noteTs:null,rating:0,visited:false,address:'534 Điện Biên Phủ, Sa Pa'},
+          {id:'s2',name:'Breakfast at homestay',type:'Food',color:'#4A8A5A',tags:['Veg ✓','Included in stay'],note:'',noteTs:null,rating:0,visited:false,address:'534 Điện Biên Phủ, Sa Pa'},
+          {id:'s3',name:'Lao Chai & Ta Van Village walk',type:'Activity',color:'#5A8A3A',tags:['Must-do','Local guide ~150k','3.5–4 hrs trek'],note:'',noteTs:null,rating:0,visited:false,address:'Lao Chai Village, Muong Hoa Valley, Sa Pa'},
+          {id:'s4',name:'Gem Valley — Art Gallery Café',type:'Café',color:'#8A5AA5',tags:['Hidden gem 4.9★','Artist couple','On route to Haven'],note:'',noteTs:null,rating:0,visited:false,address:'08 Cat Cat, San Sả Hồ, Sa Pa'},
+          {id:'s5',name:'The Haven Sapa Camp',type:'Café',color:'#D4954A',tags:['Valley views','Vong Canh Hill','Cat Cat Village'],note:'',noteTs:null,rating:0,visited:false,address:'Vong Canh Hill, Cat Cat Village, San Sa Ho, Sa Pa'},
+          {id:'s6',name:'Local hotpot dinner',type:'Dinner',color:'#4A8A5A',tags:['Veg broth for Manisha','Arrange morning of'],note:'',noteTs:null,rating:0,visited:false,address:'534 Điện Biên Phủ, Sa Pa'},
+          {id:'s7',name:'Red Dao Herbal Bath',type:'Activity',color:'#8A5AA5',tags:['Optional','150k VND pp','Ta Phin Village'],note:'',noteTs:null,rating:0,visited:false,address:'Ta Phin Village, 17km from Sa Pa'},
+        ]},
+        {label:'Day 5',places:[
+          {id:'s8',name:'Sunrise terrace views',type:'Sights',color:'#8C877E',tags:['6 AM','Weather dependent'],note:'',noteTs:null,rating:0,visited:false,address:'534 Điện Biên Phủ, Sa Pa'},
+          {id:'s9',name:'Fansipan Cable Car',type:'Activity',color:'#4A6A9A',tags:['Weather check first','~750k VND','Closes 2:30 PM'],note:'',noteTs:null,rating:0,visited:false,address:'8 Nguyễn Chí Thanh, Sa Pa'},
+          {id:'s10',name:'Ham Rong Mountain ☁ Backup',type:'Sights',color:'#8C877E',tags:['If Fansipan clouded','70k VND','4.5★ Cloud Yard'],note:'',noteTs:null,rating:0,visited:false,address:'108 Thạch Sơn, Sa Pa'},
+          {id:'s11',name:'Good Morning Vietnam — lunch',type:'Lunch',color:'#4A8A5A',tags:['Pumpkin soup (Manisha)','Coconut curry (Vehu)','4.5★'],note:'',noteTs:null,rating:0,visited:false,address:'63B Fansipan St, Sa Pa'},
+          {id:'s12',name:'Coóng Coffee & Music',type:'Café',color:'#D4954A',tags:['Valley glimpses','Hot milk coffee'],note:'',noteTs:null,rating:0,visited:false,address:'6 Thạch Sơn, Sa Pa'},
+          {id:'s13',name:'Sapa Night Market — souvenirs',type:'Shopping',color:'#8A5AA5',tags:["H'mong handmade",'Indigo fabric','Silver jewellery'],note:'',noteTs:null,rating:0,visited:false,address:'Lương Định Của, Sa Pa'},
+          {id:'s14',name:'Early dinner + sleeper bus back',type:'Dinner',color:'#4A8A5A',tags:['Departs ~6–7 PM','8–9 hrs to Hanoi'],note:'',noteTs:null,rating:0,visited:false,address:'Sapa town centre'},
+        ]},
+      ]
+    });
+  }
+
+  // Add Hoi An trip if missing
+  if(!DB.trips.find(t=>t.id==='t3')) {
+    DB.trips.push({
+      id:'t3',cityId:'ci3',name:'Hội An — Days 6–9',base:'BnB Cottage, Hội An, Quảng Nam',
+      tagline:'Ancient Town · Beaches · Linen · Lanterns',dates:'April 2025',
+      days:[
+        {label:'Day 6',places:[
+          {id:'h1',name:'Da Nang → Hoi An transfer',type:'Activity',color:'#8C877E',tags:['2:35 PM flight','40 min transfer','~300k VND taxi'],note:'',noteTs:null,rating:0,visited:false,address:'Da Nang International Airport'},
+          {id:'h2',name:'Old Town lantern-lit walk',type:'Sights',color:'#4A6A9A',tags:['First impression','Japanese Bridge'],note:'',noteTs:null,rating:0,visited:false,address:'Tran Phu Street, Old Town, Hoi An'},
+          {id:'h3',name:'Morning Glory Original',type:'Dinner',color:'#4A8A5A',tags:['White rose dumplings','Cao lau','Book ahead'],note:'',noteTs:null,rating:0,visited:false,address:'106 Nguyễn Thái Học, Old Town, Hoi An'},
+          {id:'h4',name:'Mót Hội An — herbal drink',type:'Café',color:'#D4954A',tags:['Lemongrass herbal','Icon of Hoi An'],note:'',noteTs:null,rating:0,visited:false,address:'150 Trần Phú, Old Town, Hoi An'},
+        ]},
+        {label:'Day 7',places:[
+          {id:'h5',name:'Bánh Mì Phượng',type:'Food',color:'#4A8A5A',tags:["Bourdain's best",'Garlic cheese (Manisha)','Opens 6:30 AM'],note:'',noteTs:null,rating:0,visited:false,address:'2b Phan Chu Trinh, Hoi An'},
+          {id:'h6',name:'LiMe Store — order linen',type:'Shopping',color:'#8A5AA5',tags:['Custom linen 24hrs','4.8★','Order today collect Day 8/9'],note:'',noteTs:null,rating:0,visited:false,address:'107 Trần Cao Vân, Hoi An'},
+          {id:'h7',name:'An Bang Beach',type:'Activity',color:'#3A8A9A',tags:['Swim','Sunlounger 75k','Morning best'],note:'',noteTs:null,rating:0,visited:false,address:'Hai Bà Trưng, Hội An Tây'},
+          {id:'h8',name:'Sound of Silence Café',type:'Café',color:'#D4954A',tags:['Beach brunch','Cash only','Smoothie bowl (Manisha)'],note:'',noteTs:null,rating:0,visited:false,address:'40 Nguyễn Phan Vinh, An Bang, Hoi An'},
+          {id:'h9',name:'Tra Que Herb Village',type:'Sights',color:'#5A8A3A',tags:['Hidden gem','Organic farm','On cycle route back'],note:'',noteTs:null,rating:0,visited:false,address:'Trà Quế, Cẩm Hà, Hội An'},
+          {id:'h10',name:'Reaching Out Tea House',type:'Café',color:'#D4954A',tags:['Deaf staff','Jasmine tea set','4.8★'],note:'',noteTs:null,rating:0,visited:false,address:'131 Trần Phú, Old Town, Hoi An'},
+          {id:'h11',name:'Japanese Covered Bridge',type:'Sights',color:'#4A6A9A',tags:['Heritage ticket 120k','1590s landmark'],note:'',noteTs:null,rating:0,visited:false,address:'Nguyễn Thị Minh Khai, Old Town, Hoi An'},
+          {id:'h12',name:'Thu Bon River — sunset',type:'Sights',color:'#C2607A',tags:['Lantern boats','Golden hour'],note:'',noteTs:null,rating:0,visited:false,address:'Bạch Đằng Street, Old Town, Hoi An'},
+          {id:'h13',name:'Mango Mango — riverside dinner',type:'Dinner',color:'#4A8A5A',tags:['River view table','Book ahead','4.3★'],note:'',noteTs:null,rating:0,visited:false,address:'45 Nguyễn Phúc Chu, Hoi An'},
+        ]},
+        {label:'Day 8',places:[
+          {id:'h14',name:"Rosie's Café — brunch",type:'Café',color:'#D4954A',tags:['Vegan pancakes','Avo Good Day','4.7★'],note:'',noteTs:null,rating:0,visited:false,address:'02 Mạc Đĩnh Chi, Hoi An'},
+          {id:'h15',name:'Countryside rice field cycling',type:'Activity',color:'#5A8A3A',tags:['Bicycle hire','Thu Bon River road'],note:'',noteTs:null,rating:0,visited:false,address:'Along Thu Bon River, west of Hoi An'},
+          {id:'h16',name:'Lò Gạch Cũ Farm Café',type:'Café',color:'#8A5AA5',tags:['Hidden gem 4.5★','Rice paddy + kiln','20 min from Old Town'],note:'',noteTs:null,rating:0,visited:false,address:'Vĩnh Nam, Duy Xuyên, Quảng Nam'},
+          {id:'h17',name:'Coconut Basket Boat with Yen',type:'Activity',color:'#C2607A',tags:['Book ahead','200k VND pp','5★ 50 min'],note:'',noteTs:null,rating:0,visited:false,address:'Cẩm Sơn, Hội An'},
+          {id:'h18',name:'Giong Café',type:'Café',color:'#D4954A',tags:['Heritage building','Mango cold brew','4.8★'],note:'',noteTs:null,rating:0,visited:false,address:'9 Nguyễn Thái Học, Old Town, Hoi An'},
+          {id:'h19',name:'Tan Ky Ancient House',type:'Sights',color:'#4A6A9A',tags:['Heritage ticket 120k','200-yr-old','4.2★'],note:'',noteTs:null,rating:0,visited:false,address:'101 Nguyễn Thái Học, Old Town, Hoi An'},
+          {id:'h20',name:'Mót Hội An — herbal drink',type:'Café',color:'#D4954A',tags:['Last chance','Lemongrass herbal'],note:'',noteTs:null,rating:0,visited:false,address:'150 Trần Phú, Old Town, Hoi An'},
+          {id:'h21',name:'FeFe Roastery + collect LiMe',type:'Café',color:'#D4954A',tags:['Specialty coffee','Collect linen order'],note:'',noteTs:null,rating:0,visited:false,address:'728 Hai Bà Trưng, Old Town, Hoi An'},
+          {id:'h22',name:'The Hill Station — farewell dinner',type:'Dinner',color:'#4A8A5A',tags:['Done by 7:45 PM','Pack tonight','4.7★'],note:'',noteTs:null,rating:0,visited:false,address:'321 Nguyễn Duy Hiệu, Hoi An'},
+        ]},
+        {label:'Day 9',places:[
+          {id:'h23',name:'Grab to Da Nang Airport',type:'Activity',color:'#8C877E',tags:['Leave BnB 6 AM','Book night before'],note:'',noteTs:null,rating:0,visited:false,address:'Da Nang International Airport'},
+          {id:'h24',name:'Da Nang → Hanoi 8 AM flight',type:'Activity',color:'#8C877E',tags:['Arrive Hanoi ~9:30 AM'],note:'',noteTs:null,rating:0,visited:false,address:'Da Nang International Airport'},
+          {id:'h25',name:'Hanoi airport layover',type:'Activity',color:'#8C877E',tags:['Lounge or café','Light meal'],note:'',noteTs:null,rating:0,visited:false,address:'Noi Bai International Airport, Hanoi'},
+          {id:'h26',name:'Hanoi → Delhi flight',type:'Activity',color:'#8C877E',tags:['7:30 PM IST = 9 PM Vietnam','Vietnam done ✓'],note:'',noteTs:null,rating:0,visited:false,address:'Noi Bai International Airport, Hanoi'},
+        ]},
+      ]
+    });
+  }
+
   save();
 }
 
@@ -552,6 +757,7 @@ function openTrip(id) {
   document.getElementById('tDates').textContent=t.dates;
   document.getElementById('tName').textContent=t.name;
   document.getElementById('tTagline').textContent=t.tagline;
+  document.getElementById('baseText').textContent=t.base||'Tap to add your accommodation';
   const tb=document.getElementById('tripBack'); tb.textContent=`← ${ci.name}`; tb.onclick=()=>openCity(ci.id);
   renderStrip(t); renderPlaces(t,NAV.dayIdx);
   showView('vTrip'); bc();
@@ -997,6 +1203,7 @@ function bc(){
 // ══ SHEETS ══
 function openSheet(id){document.getElementById(id).classList.add('open');}
 function closeSheet(id){document.getElementById(id).classList.remove('open');}
+// Note: openSheet is overridden after INIT to add theme picker rendering
 document.querySelectorAll('.overlay').forEach(m=>m.addEventListener('click',e=>{if(e.target===m)m.classList.remove('open');}));
 
 // FAB
@@ -1018,8 +1225,167 @@ function tap(el,fn,skip){el.addEventListener('click',e=>{if(skip&&e.target.close
 let _tt;
 function showToast(m){const t=document.getElementById('toast');t.textContent=m;t.classList.add('show');clearTimeout(_tt);_tt=setTimeout(()=>t.classList.remove('show'),2200);}
 
+// ══ THEMES ══
+const THEMES = [
+  { id:'warm',   label:'Warm',   bg:'#C9943A', ink:'#1A1714' },
+  { id:'slate',  label:'Slate',  bg:'#3A6EA8', ink:'#1B2333' },
+  { id:'forest', label:'Forest', bg:'#4A7A3A', ink:'#1A2418' },
+  { id:'noir',   label:'Noir',   bg:'#D4A84A', ink:'#1A1A1A' },
+  { id:'blush',  label:'Blush',  bg:'#C2607A', ink:'#2A1A1F' },
+];
+function applyTheme(id) {
+  document.body.className = id === 'warm' ? '' : 'theme-' + id;
+  try { localStorage.setItem('ll_theme', id); } catch(e) {}
+  document.querySelectorAll('.theme-swatch').forEach(s => s.classList.toggle('active', s.dataset.theme === id));
+}
+function renderThemePicker() {
+  const el = document.getElementById('themePicker'); if(!el) return;
+  const current = localStorage.getItem('ll_theme') || 'warm';
+  el.innerHTML = THEMES.map(t => `
+    <div class="theme-opt">
+      <div class="theme-swatch ${t.id===current?'active':''}" data-theme="${t.id}"
+        style="background:${t.ink};border-color:${t.id===current?t.bg:'transparent'};box-shadow:inset 0 0 0 8px ${t.bg};">
+      </div>
+      <div class="theme-swatch-label">${t.label}</div>
+    </div>`).join('');
+  el.querySelectorAll('.theme-swatch').forEach(s => {
+    s.addEventListener('click', () => applyTheme(s.dataset.theme));
+    s.addEventListener('touchend', e => { e.preventDefault(); applyTheme(s.dataset.theme); }, {passive:false});
+  });
+}
+// Override openSheet to render theme picker when backup opens
+const _origOpenSheet = openSheet;
+function openSheet(id) {
+  _origOpenSheet(id);
+  if(id === 'backupSheet') renderThemePicker();
+}
+
+// ══ EDIT TRIP ══
+function editTrip() {
+  const t = find('trips', NAV.tripId); if(!t) return;
+  document.getElementById('et_name').value = t.name || '';
+  document.getElementById('et_dates').value = t.dates || '';
+  document.getElementById('et_tagline').value = t.tagline || '';
+  openSheet('editTripSheet');
+  const btn = document.getElementById('saveTripEdit');
+  btn.onclick = () => {
+    t.name = document.getElementById('et_name').value.trim() || t.name;
+    t.dates = document.getElementById('et_dates').value.trim();
+    t.tagline = document.getElementById('et_tagline').value.trim();
+    document.getElementById('tName').textContent = t.name;
+    document.getElementById('tDates').textContent = t.dates;
+    document.getElementById('tTagline').textContent = t.tagline;
+    closeSheet('editTripSheet'); save(); showToast('Trip updated ✓');
+  };
+  btn.ontouchend = e => { e.preventDefault(); btn.onclick(); };
+}
+
+// ══ EDIT BASE ══
+function editBase() {
+  const t = find('trips', NAV.tripId); if(!t) return;
+  document.getElementById('eb_text').value = t.base || '';
+  openSheet('editBaseSheet');
+  const btn = document.getElementById('saveBaseEdit');
+  btn.onclick = () => {
+    t.base = document.getElementById('eb_text').value.trim();
+    document.getElementById('baseText').textContent = t.base || 'Tap to add your accommodation';
+    closeSheet('editBaseSheet'); save(); showToast('Accommodation saved ✓');
+  };
+  btn.ontouchend = e => { e.preventDefault(); btn.onclick(); };
+}
+
+// ══ IMPORT FROM URL ══
+function checkImportParam() {
+  try {
+    const params = new URLSearchParams(window.location.search);
+    const raw = params.get('trip');
+    if(!raw) return;
+    const trip = JSON.parse(decodeURIComponent(raw));
+    if(!trip || !trip.name || !trip.days) return;
+    showImportSheet(trip);
+  } catch(e) { console.warn('Import parse error:', e); }
+}
+
+function clearImportParam() {
+  const url = window.location.pathname;
+  window.history.replaceState({}, '', url);
+}
+
+function showImportSheet(trip) {
+  const places = trip.days.reduce((a,d)=>a+d.places.length,0);
+  const existing = DB.trips.find(t => t.name === trip.name);
+  const preview = document.getElementById('importPreview');
+  preview.innerHTML = `
+    <div style="background:var(--paper);border-radius:10px;padding:13px 14px;border:1px solid var(--cream);">
+      <div style="font-size:10px;text-transform:uppercase;letter-spacing:.1em;color:var(--muted);margin-bottom:6px;">Trip to import</div>
+      <div style="font-size:16px;font-weight:500;font-family:'Playfair Display',serif;margin-bottom:3px;">${trip.name}</div>
+      <div style="font-size:12px;color:var(--muted);">${trip.dates||''} · ${trip.days.length} days · ${places} places</div>
+      ${trip.tagline?`<div style="font-size:11px;color:var(--muted);margin-top:3px;">${trip.tagline}</div>`:''}
+      ${existing?`<div style="font-size:11px;color:var(--red);margin-top:8px;padding:5px 8px;background:#FAE9E7;border-radius:6px;">⚠ A trip named "${trip.name}" already exists</div>`:''}
+    </div>`;
+
+  // Wire up buttons
+  const addBtn = document.getElementById('importAddBtn');
+  const replBtn = document.getElementById('importReplaceBtn');
+
+  // Clone to remove old listeners
+  const newAdd = addBtn.cloneNode(true);
+  const newRepl = replBtn.cloneNode(true);
+  addBtn.parentNode.replaceChild(newAdd, addBtn);
+  replBtn.parentNode.replaceChild(newRepl, replBtn);
+
+  function doImport(replace) {
+    // Ensure country + city exist
+    if(!DB.countries.find(c=>c.id===trip.countryId||c.name===trip.countryName)) {
+      DB.countries.push({id:trip.countryId||('_c'+Date.now()),name:trip.countryName||'Unknown',flag:trip.countryFlag||'🌍',color:'#C9943A'});
+    }
+    const country = DB.countries.find(c=>c.id===trip.countryId)||DB.countries[DB.countries.length-1];
+    if(!DB.cities.find(c=>c.id===trip.cityId)) {
+      DB.cities.push({id:trip.cityId||('_ci'+Date.now()),countryId:country.id,name:trip.cityName||trip.name,icon:trip.cityIcon||'🏙'});
+    }
+    const cityId = trip.cityId || DB.cities[DB.cities.length-1].id;
+
+    if(replace) {
+      DB.trips = DB.trips.filter(t=>t.name!==trip.name);
+    }
+    const uid = '_'+Date.now()+Math.random().toString(36).slice(2,5);
+    DB.trips.push({
+      id: uid,
+      cityId: cityId,
+      name: trip.name,
+      tagline: trip.tagline||'',
+      dates: trip.dates||'',
+      base: trip.base||'',
+      days: trip.days
+    });
+    save();
+    closeSheet('importTripSheet');
+    clearImportParam();
+    renderWorld();
+    showToast('✓ Trip imported!');
+    // Navigate to the new trip
+    setTimeout(()=>{
+      const city = DB.cities.find(c=>c.id===cityId);
+      if(city){NAV.cityId=cityId;NAV.countryId=city.countryId;}
+      const newTrip = DB.trips.find(t=>t.id===uid);
+      if(newTrip){NAV.tripId=uid;NAV.dayIdx=0;openTrip(uid);}
+    },300);
+  }
+
+  document.getElementById('importAddBtn').addEventListener('click',()=>doImport(false));
+  document.getElementById('importAddBtn').addEventListener('touchend',e=>{e.preventDefault();doImport(false);},{passive:false});
+  document.getElementById('importReplaceBtn').addEventListener('click',()=>doImport(true));
+  document.getElementById('importReplaceBtn').addEventListener('touchend',e=>{e.preventDefault();doImport(true);},{passive:false});
+
+  openSheet('importTripSheet');
+}
+
 // ══ INIT ══
 load(); seed(); renderWorld(); setSyncDot('saved');
+// Restore saved theme
+try { const t = localStorage.getItem('ll_theme'); if(t) applyTheme(t); } catch(e) {}
+// Check for incoming trip import
+checkImportParam();
 
 // Load Google Maps JS (new dynamic library loading)
 (function(){
