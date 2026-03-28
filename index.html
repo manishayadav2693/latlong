@@ -855,19 +855,19 @@ function openAdd(type) {
       <button class="submit-btn" id="doAdd">Add Place</button>
       <div class="sheet-cancel" onclick="closeSheet('addSheet')">Cancel</div>`;
 
-    // Init Places autocomplete — called after DOM is rendered
-    setTimeout(() => initPlacesSearch('mi_n','acList', (place) => {
-      selectedPlace = place;
-      document.getElementById('mi_n').value = place.name;
-      document.getElementById('placePreview').style.display='block';
-      document.getElementById('placePreview').innerHTML=`<strong style="color:var(--ink)">${place.name}</strong>${place.address?` · ${place.address}`:''}<br><span style="color:var(--gold);text-transform:uppercase;font-size:10px;letter-spacing:.06em">${place.type}</span>`;
-      // Show type override option
-      document.getElementById('typeField').style.display='block';
-      // Pre-select detected type
-      document.querySelectorAll('#typeField .eopt').forEach(el=>{
-        if(el.dataset.val===place.type){el.classList.add('sel');selEmoji=place.type;}
+    // Init Places autocomplete — called after sheet is open and DOM is rendered
+    setTimeout(() => {
+      initPlacesSearch('mi_n', 'acList', (place) => {
+        selectedPlace = place;
+        document.getElementById('mi_n').value = place.name;
+        document.getElementById('placePreview').style.display = 'block';
+        document.getElementById('placePreview').innerHTML = `<strong style="color:var(--ink)">${place.name}</strong>${place.address ? ' · ' + place.address : ''}<br><span style="color:var(--gold);text-transform:uppercase;font-size:10px;letter-spacing:.06em">${place.type}</span>`;
+        document.getElementById('typeField').style.display = 'block';
+        document.querySelectorAll('#typeField .eopt').forEach(el => {
+          if (el.dataset.val === place.type) { el.classList.add('sel'); selEmoji = place.type; }
+        });
       });
-    });
+    }, 150);
   }
 
   // Emoji pickers
