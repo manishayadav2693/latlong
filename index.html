@@ -109,6 +109,17 @@ body { font-family:'DM Sans',sans-serif; background:var(--paper); color:var(--in
 @keyframes pulse { 0%,100%{opacity:1}50%{opacity:.35} }
 .backup-btn { background:rgba(201,148,58,0.15); border:1px solid rgba(201,148,58,0.3); color:var(--gold); border-radius:6px; padding:5px 10px; font-size:11px; font-weight:500; cursor:pointer; -webkit-tap-highlight-color:transparent; touch-action:manipulation; }
 .backup-btn:active { background:rgba(201,148,58,0.3); }
+.drive-status { font-size:10px; color:rgba(248,245,240,0.4); display:flex; align-items:center; gap:5px; margin-top:2px; }
+.drive-dot { width:6px; height:6px; border-radius:50%; background:#555; flex-shrink:0; }
+.drive-dot.connected { background:#4CAF50; }
+.drive-dot.syncing { background:var(--gold); animation:pulse .8s infinite; }
+.drive-dot.error { background:var(--red); }
+.drive-connect-banner { background:#1A2E1A; border:1px solid rgba(76,175,80,0.3); border-radius:10px; padding:14px 16px; margin-bottom:16px; }
+.drive-connect-title { font-size:13px; font-weight:500; color:#A8D4A0; margin-bottom:4px; }
+.drive-connect-sub { font-size:11.5px; color:rgba(168,212,160,0.6); line-height:1.55; margin-bottom:10px; }
+.drive-connect-btn { background:#4CAF50; color:white; border:none; border-radius:8px; padding:10px 16px; font-size:13px; font-weight:500; cursor:pointer; width:100%; -webkit-tap-highlight-color:transparent; }
+.drive-connect-btn:active { background:#388E3C; }
+.drive-disconnect { font-size:11px; color:var(--muted); text-align:center; cursor:pointer; padding:6px; margin-top:4px; }
 
 /* STATE LEVEL */
 .state-input-wrap{position:relative;}
@@ -352,6 +363,7 @@ body { font-family:'DM Sans',sans-serif; background:var(--paper); color:var(--in
   </div>
   <div class="topbar-right">
     <div class="sync-dot" id="syncDot"></div>
+    <div class="drive-dot" id="driveDot" title="Google Drive sync"></div>
     <div class="backup-btn" onclick="openSheet('backupSheet');renderThemePicker()">☁</div>
   </div>
 </div>
@@ -476,12 +488,14 @@ body { font-family:'DM Sans',sans-serif; background:var(--paper); color:var(--in
 <div class="overlay" id="backupSheet">
   <div class="sheet">
     <div class="sheet-handle"></div>
-    <div class="sheet-title">☁ Backup & Restore</div>
-    <p style="font-size:13px;color:var(--muted);line-height:1.7;margin-bottom:10px;">Data saves automatically in this browser — the dot turns green when saved.</p>
-    <p style="font-size:13px;color:var(--muted);line-height:1.7;margin-bottom:14px;">To back up across devices, export and save to Drive or iCloud. Import to restore.</p>
-    <button class="submit-btn" style="background:var(--green)" onclick="exportData()">⬇ Export data</button>
-    <button class="submit-btn" style="background:white;color:var(--ink);border:1.5px solid var(--cream);margin-top:8px;" onclick="importData()">⬆ Import data</button>
-    <input type="file" id="importFile" accept=".json" style="display:none" onchange="handleImport(event)">
+    <div class="sheet-title">☁ Sync & Backup</div>
+    <div id="driveSection"></div>
+    <div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--cream);">
+      <div style="font-size:11px;font-weight:500;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin-bottom:8px;">Manual backup</div>
+      <button class="submit-btn" style="background:var(--green)" onclick="exportData()">⬇ Export JSON</button>
+      <button class="submit-btn" style="background:white;color:var(--ink);border:1.5px solid var(--cream);margin-top:8px;" onclick="importData()">⬆ Import JSON</button>
+      <input type="file" id="importFile" accept=".json" style="display:none" onchange="handleImport(event)">
+    </div>
     <div style="margin-top:20px;padding-top:16px;border-top:1px solid var(--cream);">
       <div class="field-lbl" style="margin-bottom:10px;">App theme</div>
       <div class="theme-picker" id="themePicker"></div>
@@ -566,6 +580,11 @@ function save() {
   try { localStorage.setItem('ll1', JSON.stringify(DB)); } catch(e){}
   clearTimeout(save._t);
   save._t = setTimeout(() => setSyncDot('saved'), 500);
+  // Drive auto-save — debounced 2s after last change
+  if(getDriveToken()) {
+    clearTimeout(_driveSaveTimer);
+    _driveSaveTimer = setTimeout(()=>driveSave(), 2000);
+  }
 }
 function load() { try { const d = localStorage.getItem('ll1'); if(d) DB = JSON.parse(d); } catch(e){} 
   // Ensure all collections exist (for older saves missing new fields)
@@ -2136,6 +2155,162 @@ function showImportSheet(trip) {
   openSheet('importTripSheet');
 }
 
+// ══ GOOGLE DRIVE SYNC ══
+const DRIVE_CLIENT_ID = '778729943229-otpre29dtmhbvvcb5d3ev880dncurs9r.apps.googleusercontent.com';
+const DRIVE_SCOPE = 'https://www.googleapis.com/auth/drive.appdata';
+const DRIVE_FILE_NAME = 'latlong_data.json';
+let _driveToken = null;
+let _driveFileId = null;
+let _driveSaveTimer = null;
+let _driveSaving = false;
+
+function setDriveDot(s) {
+  const d = document.getElementById('driveDot');
+  if(!d) return;
+  d.className = 'drive-dot' + (s==='connected'?' connected':s==='syncing'?' syncing':s==='error'?' error':'');
+  d.title = s==='connected'?'Drive synced':s==='syncing'?'Saving to Drive...':s==='error'?'Drive sync error':'Drive not connected';
+}
+
+function getDriveToken() { return localStorage.getItem('ll_drive_token'); }
+function setDriveToken(t) { localStorage.setItem('ll_drive_token', t||''); _driveToken=t; }
+function getDriveFileId() { return localStorage.getItem('ll_drive_file_id'); }
+function setDriveFileId(id) { localStorage.setItem('ll_drive_file_id', id||''); _driveFileId=id; }
+
+function initDriveIfReady() {
+  const token = getDriveToken();
+  if(token) { _driveToken=token; _driveFileId=getDriveFileId(); setDriveDot('connected'); renderDriveSection(); }
+  else { setDriveDot(''); renderDriveSection(); }
+}
+
+function renderDriveSection() {
+  const el = document.getElementById('driveSection'); if(!el) return;
+  const token = getDriveToken();
+  if(token) {
+    el.innerHTML = `
+      <div class="drive-connect-banner" style="background:#1A2E1A;">
+        <div class="drive-connect-title">✓ Google Drive connected</div>
+        <div class="drive-connect-sub">Your data auto-saves to <strong style="color:#A8D4A0">latlong_data.json</strong> in your Drive after every change. Safe across devices and app updates.</div>
+        <button class="drive-connect-btn" style="background:var(--green)" onclick="driveSyncNow()">↻ Sync now</button>
+        <div class="drive-disconnect" onclick="driveDisconnect()">Disconnect Drive</div>
+      </div>`;
+  } else {
+    el.innerHTML = `
+      <div class="drive-connect-banner">
+        <div class="drive-connect-title">Connect Google Drive</div>
+        <div class="drive-connect-sub">Auto-save your data to Google Drive. Your memories are safe even if you clear your browser, get a new phone, or update the app.</div>
+        <button class="drive-connect-btn" onclick="driveConnect()">Connect Google Drive</button>
+      </div>`;
+  }
+}
+
+function driveConnect() {
+  if(!window._gsiLoaded || !window.google?.accounts?.oauth2) {
+    showToast('Loading Google Sign-in...'); 
+    setTimeout(driveConnect, 1000); return;
+  }
+  const client = google.accounts.oauth2.initTokenClient({
+    client_id: DRIVE_CLIENT_ID,
+    scope: DRIVE_SCOPE,
+    callback: async (resp) => {
+      if(resp.error) { showToast('Drive connection failed'); setDriveDot('error'); return; }
+      setDriveToken(resp.access_token);
+      setDriveDot('syncing');
+      showToast('Drive connected! Saving data...');
+      await driveLoadOrCreate();
+      renderDriveSection();
+    }
+  });
+  client.requestAccessToken();
+}
+
+function driveDisconnect() {
+  setDriveToken(null); setDriveFileId(null);
+  _driveToken=null; _driveFileId=null;
+  setDriveDot('');
+  renderDriveSection();
+  showToast('Drive disconnected');
+}
+
+async function driveLoadOrCreate() {
+  try {
+    // Search for existing file
+    const search = await fetch(
+      `https://www.googleapis.com/drive/v3/files?spaces=appDataFolder&q=name='${DRIVE_FILE_NAME}'&fields=files(id,name,modifiedTime)`,
+      {headers:{Authorization:`Bearer ${_driveToken}`}}
+    );
+    if(search.status===401){driveDisconnect();return;}
+    const {files} = await search.json();
+    if(files && files.length > 0) {
+      setDriveFileId(files[0].id);
+      // Load remote data and merge — remote wins for conflicts
+      await driveLoad();
+    } else {
+      // First time — create file with current data
+      await driveSave(true);
+    }
+    setDriveDot('connected');
+  } catch(e) { console.warn('Drive init error:', e); setDriveDot('error'); }
+}
+
+async function driveLoad() {
+  if(!_driveToken||!_driveFileId) return;
+  try {
+    const resp = await fetch(
+      `https://www.googleapis.com/drive/v3/files/${_driveFileId}?alt=media`,
+      {headers:{Authorization:`Bearer ${_driveToken}`}}
+    );
+    if(resp.status===401){driveDisconnect();return;}
+    if(!resp.ok) return;
+    const data = await resp.json();
+    if(data.countries && data.trips) {
+      DB = data;
+      if(!DB.states) DB.states=[];
+      if(!DB.cities) DB.cities=[];
+      localStorage.setItem('ll1', JSON.stringify(DB));
+      seed(); renderWorld();
+      showToast('✓ Data loaded from Drive');
+    }
+  } catch(e) { console.warn('Drive load error:', e); }
+}
+
+async function driveSave(forceCreate=false) {
+  if(!_driveToken) return;
+  _driveSaving=true; setDriveDot('syncing');
+  const body = JSON.stringify(DB);
+  try {
+    if(!_driveFileId || forceCreate) {
+      // Create new file in appDataFolder
+      const meta = JSON.stringify({name:DRIVE_FILE_NAME, parents:['appDataFolder']});
+      const form = new FormData();
+      form.append('metadata', new Blob([meta],{type:'application/json'}));
+      form.append('file', new Blob([body],{type:'application/json'}));
+      const resp = await fetch(
+        'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id',
+        {method:'POST', headers:{Authorization:`Bearer ${_driveToken}`}, body:form}
+      );
+      if(resp.status===401){driveDisconnect();return;}
+      const f = await resp.json();
+      if(f.id) setDriveFileId(f.id);
+    } else {
+      // Update existing file
+      const resp = await fetch(
+        `https://www.googleapis.com/upload/drive/v3/files/${_driveFileId}?uploadType=media`,
+        {method:'PATCH', headers:{Authorization:`Bearer ${_driveToken}`,'Content-Type':'application/json'}, body}
+      );
+      if(resp.status===401){driveDisconnect();return;}
+    }
+    setDriveDot('connected');
+  } catch(e) { console.warn('Drive save error:', e); setDriveDot('error'); }
+  _driveSaving=false;
+}
+
+async function driveSyncNow() {
+  if(!_driveToken){showToast('Drive not connected');return;}
+  showToast('Syncing...');
+  await driveSave();
+  showToast('✓ Synced to Drive');
+}
+
 // ══ INIT ══
 load(); seed(); renderWorld(); setSyncDot('saved');
 // Restore saved theme
@@ -2144,6 +2319,17 @@ try { const t = localStorage.getItem('ll_theme'); if(t) applyTheme(t); } catch(e
 checkImportParam();
 // Load custom world header
 loadWorldHeader();
+// Init Drive (token check — GSI may not be loaded yet, handled by onload callback)
+setTimeout(()=>{ if(getDriveToken()){_driveToken=getDriveToken();_driveFileId=getDriveFileId();setDriveDot('connected');renderDriveSection();} }, 500);
+
+// Load Google Identity Services for Drive OAuth
+(function(){
+  const s=document.createElement('script');
+  s.src='https://accounts.google.com/gsi/client';
+  s.async=true; s.defer=true;
+  s.onload=()=>{ window._gsiLoaded=true; initDriveIfReady(); };
+  document.head.appendChild(s);
+})();
 
 // Load Google Maps JS (new dynamic library loading)
 (function(){
